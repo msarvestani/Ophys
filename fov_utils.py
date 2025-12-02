@@ -42,7 +42,7 @@ def filter_fovs(fovs: List[FOV],
 
     if animal_name:
         filtered = [f for f in filtered
-                   if animal_name.lower() in f.animal_name.lower()]
+                   if f.animal_name and animal_name.lower() in f.animal_name.lower()]
 
     if brain_region:
         filtered = [f for f in filtered
@@ -71,7 +71,7 @@ def get_fov_by_animal(fovs: List[FOV], animal_name: str) -> List[FOV]:
     Returns:
         List of FOV objects for that animal
     """
-    return [f for f in fovs if f.animal_name == animal_name]
+    return [f for f in fovs if f.animal_name and f.animal_name == animal_name]
 
 
 def get_fov_by_date(fovs: List[FOV], date: datetime) -> List[FOV]:
@@ -91,7 +91,7 @@ def get_fov_by_date(fovs: List[FOV], date: datetime) -> List[FOV]:
 
 def get_unique_animals(fovs: List[FOV]) -> List[str]:
     """Get list of unique animal names in FOV list"""
-    return sorted(list(set(f.animal_name for f in fovs)))
+    return sorted(list(set(f.animal_name for f in fovs if f.animal_name)))
 
 
 def get_unique_brain_regions(fovs: List[FOV]) -> List[str]:
@@ -174,6 +174,8 @@ def validate_fov(fov: FOV) -> tuple:
         warnings.append(f"Path does not exist: {fov.TifStack_path}")
 
     # Check if critical fields are populated
+    if fov.animal_name is None:
+        warnings.append("animal_name not populated")
     if fov.stim_dur is None:
         warnings.append("stim_dur not populated")
     if fov.postPeriod is None:
@@ -208,12 +210,13 @@ def validate_all_fovs(fovs: List[FOV], verbose: bool = True):
     valid_count = 0
     for i, fov in enumerate(fovs, 1):
         is_valid, warnings = validate_fov(fov)
+        animal_display = fov.animal_name if fov.animal_name else 'Unknown'
         if is_valid:
             valid_count += 1
             if verbose:
-                print(f"✓ FOV {i} ({fov.animal_name}): Valid")
+                print(f"✓ FOV {i} ({animal_display}): Valid")
         else:
-            print(f"✗ FOV {i} ({fov.animal_name}): {len(warnings)} warning(s)")
+            print(f"✗ FOV {i} ({animal_display}): {len(warnings)} warning(s)")
             if verbose:
                 for warning in warnings:
                     print(f"    - {warning}")
@@ -236,8 +239,8 @@ def export_fov_to_dict(fov: FOV) -> dict:
     fov_dict = {
         'animal_name': fov.animal_name,
         'TifStack_path': fov.TifStack_path,
-        'fileImaging': fov.fileImaging,
-        'fileSpk': fov.fileSpk,
+        'ImagingFile': fov.ImagingFile,
+        'Spk2File': fov.Spk2File,
         'factor': fov.factor,
         'sampRate': fov.sampRate,
         'fileImagingind': fov.fileImagingind,
@@ -258,6 +261,7 @@ def export_fov_to_dict(fov: FOV) -> dict:
         'badTrials': fov.badTrials,
         'thresh': fov.thresh,
         'have_blank': fov.have_blank,
+        'EPI_data': fov.EPI_data,
     }
     return fov_dict
 

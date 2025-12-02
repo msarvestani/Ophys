@@ -130,8 +130,9 @@ def example_7_accessing_parameters():
         print(f"Recording date: {fov.recording_date}")
         print(f"Stimulus type: {fov.stim_type}")
         print(f"Sample rate: {fov.sampRate} Hz")
-        print(f"Imaging files: {fov.fileImaging}")
-        print(f"Spike files: {fov.fileSpk}")
+        print(f"Imaging files: {fov.ImagingFile}")
+        print(f"Spike2 files: {fov.Spk2File}")
+        print(f"EPI data: {fov.EPI_data}")
 
 
 def example_8_manual_population():
@@ -141,16 +142,17 @@ def example_8_manual_population():
     print("="*70)
 
     # Create a new FOV without adding it to the main list
+    # Note: animal_name is auto-extracted from the path
     test_fov = FOV(
         TifStack_path=r'X:\Experimental_Data\BrainImaging\20251114_TestAnimal',
-        animal_name='TestAnimal',
+        ImagingFile=[0],
+        Spk2File=[20],
         factor=2,
-        fileImaging=[0],
-        fileSpk=[20],
     )
 
     # Manually populate from stimulus file
     print("Before population:")
+    print(f"  animal_name: {test_fov.animal_name}")
     print(f"  stim_dur: {test_fov.stim_dur}")
     print(f"  stim_type: {test_fov.stim_type}")
 

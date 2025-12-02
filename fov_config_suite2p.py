@@ -24,29 +24,29 @@ class FOV:
 
     Manual Entry Required:
         - TifStack_path: Path to imaging data directory
-        - animal_name: Animal identifier
-        - fileImaging: List of imaging file indices
-        - fileSpk: List of spike file indices
+        - ImagingFile: List of imaging file indices
+        - Spk2File: List of spike2 file indices
 
     Optional Manual Entries (have defaults):
         - factor: Frame averaging factor in ThorImage (default: 1)
         - brain_region: Brain region recorded (default: 'v1')
         - zoom: Microscope zoom level (default: 3)
+        - EPI_data: EPI data flag (default: 0)
         - And others...
 
-    Auto-populated from stimulus file:
+    Auto-populated from path and stimulus file:
+        - animal_name: Extracted from folder name (e.g., '20251113_Derrick' -> 'Derrick')
+        - recording_date: Extracted from folder name (YYYYMMDD pattern)
         - stim_dur: Stimulus duration
         - postPeriod: Post-stimulus period (matches ISI from stim file)
         - stim_type: Type of stimulus ('grating', 'image', etc.)
         - have_blank: Whether blank trials are included
-        - recording_date: Extracted from folder name
     """
 
     # ========== MANUAL ENTRY REQUIRED ==========
     TifStack_path: str
-    animal_name: str
-    fileImaging: List[int]
-    fileSpk: List[int]
+    ImagingFile: List[int]
+    Spk2File: List[int]
 
     # ========== OPTIONAL MANUAL ENTRIES (with defaults) ==========
     factor: int = 1  # Frame averaging factor in ThorImage
@@ -63,8 +63,10 @@ class FOV:
     badTrials: List[int] = field(default_factory=lambda: [0])
     thresh: float = 0
     prePeriod: float = 0.5  # Fixed value
+    EPI_data: int = 0  # EPI data flag
 
-    # ========== AUTO-POPULATED FROM STIMULUS FILE ==========
+    # ========== AUTO-POPULATED FROM PATH AND STIMULUS FILE ==========
+    animal_name: Optional[str] = None  # Extracted from folder name
     sampRate: Optional[float] = None  # Calculated as 30/factor
     stim_dur: Optional[float] = None
     postPeriod: Optional[float] = None  # Matches isi from stimulus file
@@ -162,6 +164,30 @@ def extract_date_from_path(path_str: str) -> Optional[datetime]:
     return None
 
 
+def extract_animal_name_from_path(path_str: str) -> Optional[str]:
+    """
+    Extract animal name from folder path.
+
+    Expects pattern like: '20251113_Derrick' or '20251113_Derrick_session1'
+    Returns the part after the date and underscore.
+
+    Args:
+        path_str: Path string like 'X:\\Experimental_Data\\20251113_Derrick\\'
+
+    Returns:
+        Animal name string or None if no match found
+    """
+    # Look for pattern: YYYYMMDD_AnimalName
+    # The animal name is everything after the date until the next path separator or end
+    match = re.search(r'\d{8}_([^/\\]+)', path_str)
+    if match:
+        animal_name = match.group(1)
+        # Remove any trailing path separators or whitespace
+        animal_name = animal_name.rstrip('/\\').strip()
+        return animal_name
+    return None
+
+
 def find_stimulus_file(directory: Path, stim_filename: Optional[str] = None) -> Optional[Path]:
     """
     Find stimulus file in directory.
@@ -211,6 +237,13 @@ def populate_fov_from_stimulus(fov: FOV, stim_filename: Optional[str] = None) ->
         FOV object with auto-populated fields
     """
     path = Path(fov.TifStack_path)
+
+    # Extract animal name from path
+    fov.animal_name = extract_animal_name_from_path(str(path))
+    if fov.animal_name:
+        print(f"  ✓ Extracted animal name: {fov.animal_name}")
+    else:
+        print(f"  ⚠ Could not extract animal name from path")
 
     # Extract recording date from path
     fov.recording_date = extract_date_from_path(str(path))
@@ -266,15 +299,17 @@ def populate_fov_from_stimulus(fov: FOV, stim_filename: Optional[str] = None) ->
 def print_fov_summary(fov: FOV, index: int):
     """Print a summary of FOV parameters"""
     print(f"\n{'='*70}")
-    print(f"FOV {index}: {fov.animal_name}")
+    print(f"FOV {index}: {fov.animal_name or 'Unknown'}")
     print(f"{'='*70}")
     print(f"  Path:             {fov.TifStack_path}")
+    print(f"  Animal Name:      {fov.animal_name or 'N/A'}")
     print(f"  Recording Date:   {fov.recording_date.strftime('%Y-%m-%d') if fov.recording_date else 'N/A'}")
-    print(f"  File Imaging:     {fov.fileImaging}")
-    print(f"  File Spk:         {fov.fileSpk}")
+    print(f"  Imaging File:     {fov.ImagingFile}")
+    print(f"  Spk2 File:        {fov.Spk2File}")
     print(f"  Brain Region:     {fov.brain_region}")
     print(f"  Factor:           {fov.factor}")
     print(f"  Sample Rate:      {fov.sampRate} Hz")
+    print(f"  EPI Data:         {fov.EPI_data}")
     print(f"  Stim Type:        {fov.stim_type or 'N/A'}")
     print(f"  Stim Duration:    {fov.stim_dur}s" if fov.stim_dur else "  Stim Duration:    N/A")
     print(f"  Pre Period:       {fov.prePeriod}s")
@@ -295,10 +330,9 @@ fovs: List[FOV] = []
 # Example FOV 1
 fov1 = FOV(
     TifStack_path=r'X:\Experimental_Data\BrainImaging\20251113_Derrick',
-    animal_name='Derrick',
+    ImagingFile=[0],
+    Spk2File=[16],
     factor=4,
-    fileImaging=[0],
-    fileSpk=[16],
     fileImagingind=1,
     brain_region='v1',
     zoom=3,
@@ -310,16 +344,16 @@ fov1 = FOV(
     extraction='suite2p',
     badTrials=[0],
     thresh=0,
+    EPI_data=0,
 )
 fovs.append(fov1)
 
 # Add more FOVs here...
 # fov2 = FOV(
 #     TifStack_path=r'X:\Experimental_Data\BrainImaging\20251114_Animal2',
-#     animal_name='Animal2',
+#     ImagingFile=[0, 1],
+#     Spk2File=[10, 11],
 #     factor=2,
-#     fileImaging=[0, 1],
-#     fileSpk=[10, 11],
 #     brain_region='v1',
 # )
 # fovs.append(fov2)
@@ -338,7 +372,7 @@ def main():
 
     # Auto-populate each FOV
     for i, fov in enumerate(fovs, 1):
-        print(f"[{i}/{len(fovs)}] Processing: {fov.animal_name}")
+        print(f"[{i}/{len(fovs)}] Processing FOV from: {fov.TifStack_path}")
         print("-" * 70)
         populate_fov_from_stimulus(fov)
         print()
