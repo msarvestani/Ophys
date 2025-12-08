@@ -188,6 +188,10 @@ def plot_orientation_map(ce: CellExtraction,
         ax1.imshow(fov_image, cmap='gray', alpha=0.5)
         ax2.imshow(fov_image, cmap='gray', alpha=0.5)
 
+    # Track bounds for axis limits
+    all_x = []
+    all_y = []
+
     for idx, tuning in tuning_data:
         cell = ce.cells[idx]
         pref_ort = tuning['pref_ort_fit']
@@ -199,13 +203,36 @@ def plot_orientation_map(ce: CellExtraction,
         dir_color = plt.cm.hsv(pref_dir / 360.0)
 
         if cell.mask is not None and len(cell.mask) > 2:
+            # mask from np.argwhere is [row, col] = [y, x], need to swap for Polygon [x, y]
+            mask_xy = cell.mask[:, ::-1] if cell.mask.shape[1] == 2 else cell.mask
+
+            # Track bounds
+            all_x.extend(mask_xy[:, 0])
+            all_y.extend(mask_xy[:, 1])
+
             # Plot orientation map
-            poly = Polygon(cell.mask, facecolor=ort_color, edgecolor='none', alpha=0.6)
+            poly = Polygon(mask_xy, facecolor=ort_color, edgecolor='none', alpha=0.6)
             ax1.add_patch(poly)
 
             # Plot direction map
-            poly = Polygon(cell.mask, facecolor=dir_color, edgecolor='none', alpha=0.6)
+            poly = Polygon(mask_xy, facecolor=dir_color, edgecolor='none', alpha=0.6)
             ax2.add_patch(poly)
+
+    # Set axis limits based on data if no fov_image provided
+    if fov_image is None and len(all_x) > 0:
+        margin = 20  # pixels
+        x_min, x_max = min(all_x) - margin, max(all_x) + margin
+        y_min, y_max = min(all_y) - margin, max(all_y) + margin
+        ax1.set_xlim(x_min, x_max)
+        ax1.set_ylim(y_max, y_min)  # Invert y-axis for image coordinates
+        ax2.set_xlim(x_min, x_max)
+        ax2.set_ylim(y_max, y_min)
+    elif fov_image is None:
+        # Default to typical FOV size if no data
+        ax1.set_xlim(0, 512)
+        ax1.set_ylim(512, 0)
+        ax2.set_xlim(0, 512)
+        ax2.set_ylim(512, 0)
 
     ax1.set_title('Orientation Preference Map', fontsize=14, fontweight='bold')
     ax1.set_xlabel('X (pixels)')
