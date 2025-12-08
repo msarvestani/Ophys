@@ -62,36 +62,25 @@ def analyze_fov(data_dir: Path,
     print(f"Output directory: {output_dir}")
     print()
 
-    # Step 1: Find stimulus file if not provided
+    # Step 1: Stimulus file detection
     if stim_file is None:
-        print("Step 1: Finding stimulus file...")
-        stim_patterns = ['*visual*.py', '*stim*.py', '*grating*.py', '*ori*.py', '*.py']
-        for pattern in stim_patterns:
-            matches = list(data_dir.glob(pattern))
-            if matches:
-                stim_file = matches[0]
-                print(f"  Found: {stim_file.name}")
-                break
-
-        if stim_file is None:
-            print("  Error: No stimulus file found!")
-            sys.exit(1)
+        print("Step 1: Auto-detecting stimulus file in Spk2 subdirectories...")
     else:
         stim_file = Path(stim_file)
+        print(f"Step 1: Using stimulus file: {stim_file}")
 
     # Step 2: Configure FOV
     print("\nStep 2: Configuring FOV...")
     try:
         fov = create_fov_from_stimfile(
-            stimfile=str(stim_file),
+            stimfile=str(stim_file) if stim_file else None,
             TifStack_path=str(data_dir),
             ImagingFile=imaging_files,
             Spk2File=spk2_files,
+            factor=factor,
+            brain_region=brain_region,
+            layer=layer,
         )
-        fov.factor = factor
-        fov.brain_region = brain_region
-        if layer:
-            fov.layer = layer
 
         print(f"  Animal: {fov.animal_name}")
         print(f"  Recording date: {fov.recording_date}")

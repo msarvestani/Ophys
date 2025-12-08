@@ -20,19 +20,21 @@ from ophys_analysis import (
 # EDIT THESE PATHS FOR YOUR ANALYSIS
 # ============================================================================
 
-# Path to your data directory (contains suite2p/ and imaging_processed/)
-DATA_DIR = r'X:/Madineh/Calcium_Imaging/20251113_Derrick'
+# Path to your data directory (contains suite2p/, t00016/, etc.)
+DATA_DIR = r'X:/Experimental_Data/BrainImaging/20251113_Derrick'
 
 # Path to your stimulus file (or set to None to auto-detect)
-STIM_FILE = None  # Will auto-find *visual*.py, *stim*.py, etc.
-# STIM_FILE = r'X:/Madineh/Calcium_Imaging/20251113_Derrick/visual_stim.py'
+# When None, it will search in Spk2 subdirectories (t00016/, t00017/, etc.)
+STIM_FILE = None  # Auto-detect .py file in t00016/ etc.
+# Or specify exact path:
+# STIM_FILE = r'X:/Experimental_Data/BrainImaging/20251113_Derrick/t00016/driftinggrating_orientation.py'
 
 # Output directory for results
-OUTPUT_DIR = r'X:/Madineh/Calcium_Imaging/20251113_Derrick/analysis_results'
+OUTPUT_DIR = r'X:/Experimental_Data/BrainImaging/20251113_Derrick/analysis_results'
 
 # Experimental parameters
 IMAGING_FILES = [0]       # Which imaging file(s) to use
-SPK2_FILES = [0]          # Which Spike2 file(s) to use
+SPK2_FILES = [0]          # Which Spike2 file(s) to use (also used to find stim file)
 BRAIN_REGION = 'V1'       # Brain region
 LAYER = 'L2/3'            # Cortical layer (or None)
 FACTOR = 1                # Downsampling factor
@@ -53,32 +55,20 @@ def main():
     output_path = Path(OUTPUT_DIR)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Find stimulus file if not specified
-    stim_file = STIM_FILE
-    if stim_file is None:
-        data_path = Path(DATA_DIR)
-        stim_patterns = ['*visual*.py', '*stim*.py', '*grating*.py', '*.py']
-        for pattern in stim_patterns:
-            matches = list(data_path.glob(pattern))
-            if matches:
-                stim_file = str(matches[0])
-                print(f"Found stimulus file: {Path(stim_file).name}")
-                break
-
-        if stim_file is None:
-            raise FileNotFoundError("No stimulus file found! Set STIM_FILE manually.")
+    # Stimulus file will be auto-detected by create_fov_from_stimfile
+    # It searches in Spk2 subdirectories (t00016/, etc.) automatically
 
     # Step 1: Configure FOV
     print("\n[1/4] Configuring FOV...")
     fov = create_fov_from_stimfile(
-        stimfile=stim_file,
+        stimfile=STIM_FILE,  # None = auto-detect in Spk2 subdirectories
         TifStack_path=DATA_DIR,
         ImagingFile=IMAGING_FILES,
         Spk2File=SPK2_FILES,
+        factor=FACTOR,
+        brain_region=BRAIN_REGION,
+        layer=LAYER,
     )
-    fov.factor = FACTOR
-    fov.brain_region = BRAIN_REGION
-    fov.layer = LAYER
 
     print(f"  Animal: {fov.animal_name}")
     print(f"  Recording date: {fov.recording_date}")
