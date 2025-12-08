@@ -413,14 +413,10 @@ def extract_suite2p_traces(fov, fnum: int = 0, save_dir: Optional[Path] = None) 
 
         cell = Cell()
 
-        # Extract ROI position
+        # Extract ROI position and mask
         stat = suite2p_data['stat'][ind]
-        cell.yPos = np.median(stat['ypix'][0])
-        cell.xPos = np.median(stat['xpix'][0])
 
-        # Extract mask
         try:
-            mask = np.zeros((512, 512))
             # Properly flatten nested MATLAB arrays - handle multiple nesting levels
             ypix_raw = stat['ypix'][0]
             xpix_raw = stat['xpix'][0]
@@ -438,7 +434,12 @@ def extract_suite2p_traces(fov, fnum: int = 0, save_dir: Optional[Path] = None) 
             xpix = np.asarray(xpix_raw).flatten().astype(int)
             lam = np.asarray(lam_raw).flatten()
 
-            # Ensure indices are within bounds
+            # Set positions as scalars from unwrapped data
+            cell.yPos = float(np.median(ypix))
+            cell.xPos = float(np.median(xpix))
+
+            # Create mask
+            mask = np.zeros((512, 512))
             valid_idx = (xpix < 512) & (ypix < 512) & (xpix >= 0) & (ypix >= 0)
             mask[xpix[valid_idx], ypix[valid_idx]] = lam[valid_idx]
 
@@ -446,6 +447,9 @@ def extract_suite2p_traces(fov, fnum: int = 0, save_dir: Optional[Path] = None) 
             cell.mask = mask_coords
         except Exception as e:
             print(f"    Warning: Could not extract mask for ROI {i}: {e}")
+            # Fallback: set default position and mask
+            cell.yPos = 256.0
+            cell.xPos = 256.0
             cell.mask = np.array([[cell.xPos, cell.yPos]])
 
         # Extract traces
