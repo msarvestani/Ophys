@@ -71,10 +71,10 @@ def double_gauss(params: np.ndarray, X: np.ndarray) -> np.ndarray:
 
     # Calculate angular differences (with wrapping)
     D = X - theta_pref
-    D = np.array([min(abs([d, d + 360, d - 360])) for d in D])
+    D = np.array([min(abs(d), abs(d + 360), abs(d - 360)) for d in D])
 
     D2 = X + 180 - theta_pref
-    D2 = np.array([min(abs([d, d + 360, d - 360])) for d in D2])
+    D2 = np.array([min(abs(d), abs(d + 360), abs(d - 360)) for d in D2])
 
     # Double Gaussian
     Y = (R_offset +
@@ -98,7 +98,7 @@ def circular_gauss(params: np.ndarray, theta: float) -> float:
     R_offset, R_pref, theta_pref, sigma = params[:4]
 
     D = theta - theta_pref
-    D = min(abs([D, D + 360, D - 360]))
+    D = min(abs(D), abs(D + 360), abs(D - 360))
 
     Y = R_offset + R_pref * np.exp(-(D ** 2) / (2 * sigma ** 2))
 
@@ -124,15 +124,25 @@ def fit_tuning_direction(meanResponse: np.ndarray,
     maxVal = np.max(meanResponse)
     Resp = meanResponse[:len(X)]
 
-    # Initialize parameters
+    # Handle edge cases for bounds calculation
+    if minVal <= 0:
+        minVal_bound = 0.0001
+    else:
+        minVal_bound = minVal
+    if maxVal <= minVal_bound:
+        maxVal_bound = minVal_bound + 1
+    else:
+        maxVal_bound = maxVal
+
+    # Initialize parameters: [R_offset, R_pref, theta_pref, sigma, R_opp]
     G0 = np.zeros(5)
-    G0[0] = minVal  # R_offset
-    G0[1] = maxVal - minVal  # R_pref
-    G0[4] = 20  # sigma (initial guess)
+    G0[0] = max(minVal, 0.0001)  # R_offset
+    G0[1] = max(maxVal - minVal, 0.0001)  # R_pref
+    G0[3] = 20  # sigma (initial guess)
 
     # Find initial estimate for preferred direction using brute force
     minError = np.inf
-    bestPeak = -1
+    bestPeak = 0
 
     for i in range(0, 360, 5):
         G0[2] = i
@@ -155,22 +165,20 @@ def fit_tuning_direction(meanResponse: np.ndarray,
     no = len(X)
     prefIndex = np.argmin(np.abs(bestPeak - X))
     orthoIndex = int((prefIndex + no / 2) % no)
-    G0[4] = Resp[orthoIndex]  # R_opp
+    G0[4] = max(Resp[orthoIndex], 0.0001)  # R_opp
 
-    # Set bounds
-    if minVal == 0:
-        minVal = 0.0001
-    if maxVal == minVal:
-        maxVal = maxVal + 1
-
+    # Set sigma bounds
     if len(X) <= 12:
         sigma_min = 150 / len(X)
     else:
         sigma_min = 2.813
 
     # Bounds: [R_offset, R_pref, theta_pref, sigma, R_opp]
-    LB = np.array([minVal * 0.1, (maxVal - minVal) * 0.5, 0, sigma_min, minVal])
-    UB = np.array([minVal * 1.2, (maxVal - minVal) * 1.5, 360, 50, (maxVal - minVal) * 1.5])
+    LB = np.array([minVal_bound * 0.1, (maxVal_bound - minVal_bound) * 0.5, 0, sigma_min, 0.0001])
+    UB = np.array([max(minVal_bound * 1.2, maxVal_bound), (maxVal_bound - minVal_bound) * 1.5, 360, 50, (maxVal_bound - minVal_bound) * 1.5])
+
+    # Ensure G0 is within bounds
+    G0 = np.clip(G0, LB, UB)
 
     # Fit using least squares
     def residuals(params):
@@ -289,7 +297,7 @@ def get_tuning_madineh(meanResponse: np.ndarray,
     # Find orthogonal direction
     theta_ortho = theta_pref + 90
     if theta_ortho > 180:
-        theta_ortho = min(abs([theta_ortho + 180, theta_ortho]))
+        theta_ortho = min(abs(theta_ortho + 180), abs(theta_ortho))
 
     # Get responses at preferred and orthogonal
     ind_ortho = np.argmin(np.abs(theta_ortho - np.arange(1, 361, 5)))
@@ -307,7 +315,7 @@ def get_tuning_madineh(meanResponse: np.ndarray,
     DIR2['pref_dir_fit'] = theta_pref
     DIR2['pref_ort_fit'] = theta_pref
     if DIR2['pref_ort_fit'] > 180:
-        DIR2['pref_ort_fit'] = min(abs([theta_pref + 180, theta_pref - 180]))
+        DIR2['pref_ort_fit'] = min(abs(theta_pref + 180), abs(theta_pref - 180))
 
     # Bound checking
     DIR2['dti_fit'] = max(0, min(1, DIR2['dti_fit']))
