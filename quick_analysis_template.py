@@ -34,7 +34,7 @@ OUTPUT_DIR = r'X:/Experimental_Data/BrainImaging/20251113_Derrick/analysis_resul
 
 # Experimental parameters
 IMAGING_FILES = [0]       # Which imaging file(s) to use
-SPK2_FILES = [0]          # Which Spike2 file(s) to use (also used to find stim file)
+SPK2_FILES = [16]         # ACTUAL Spk2 directory number (for t00016/, use [16] not [0]!)
 BRAIN_REGION = 'V1'       # Brain region
 LAYER = 'L2/3'            # Cortical layer (or None)
 FACTOR = 1                # Downsampling factor

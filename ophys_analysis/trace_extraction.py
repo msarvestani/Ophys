@@ -56,47 +56,33 @@ def format_spike2_dir(file_num: int) -> str:
 
 def find_spike2_dir(base_path: Path, file_num: int) -> Path:
     """
-    Find Spike2 directory, searching if the exact number doesn't exist.
-
-    This handles cases where Spk2File is a list index (e.g., [0])
-    rather than the actual file number (e.g., [16]).
+    Get Spike2 directory path from file number.
 
     Args:
-        base_path: Base directory to search in
-        file_num: File number from Spk2File parameter
+        base_path: Base directory containing Spk2 subdirectories
+        file_num: Actual Spk2 file/directory number (e.g., 16 for t00016/)
 
     Returns:
         Path to Spike2 directory
 
     Raises:
-        FileNotFoundError: If no valid Spike2 directory found
+        FileNotFoundError: If the specified directory doesn't exist
     """
-    # Try the exact file number first
-    exact_dir = base_path / format_spike2_dir(file_num)
-    if exact_dir.exists():
-        return exact_dir
+    spk2_dir = base_path / format_spike2_dir(file_num)
 
-    # If file_num is small (< 100), it's likely a list index, not file number
-    # Search for any directory matching t[0-9]{5} pattern
-    if file_num < 100:
-        for item in base_path.iterdir():
-            if item.is_dir() and item.name.startswith('t') and len(item.name) == 6:
-                # Check if it looks like t00016 pattern
-                if item.name[1:].isdigit():
-                    # Verify it has the expected Spike2 files
-                    if (item / 'twophotontimes.txt').exists() or (item / 'stimontimes.txt').exists():
-                        print(f"  Found Spike2 directory: {item.name} (Spk2File=[{file_num}])")
-                        return item
+    if not spk2_dir.exists():
+        raise FileNotFoundError(
+            f"Spike2 directory not found: {spk2_dir}\n"
+            f"  Spk2File parameter: [{file_num}]\n"
+            f"  Expected directory: {format_spike2_dir(file_num)}\n"
+            f"\n"
+            f"  Make sure Spk2File contains the ACTUAL directory number.\n"
+            f"  For directory 't00016/', use Spk2File=[16]\n"
+            f"  For directory 't00145/', use Spk2File=[145]\n"
+            f"  Check your data directory for the correct t* folder name."
+        )
 
-    # If not found, raise clear error
-    raise FileNotFoundError(
-        f"Could not find Spike2 directory.\n"
-        f"  Looked for: {exact_dir}\n"
-        f"  Searched in: {base_path}\n"
-        f"  Spk2File parameter: [{file_num}]\n"
-        f"  If Spk2File is a list index (not file number), directory name may differ.\n"
-        f"  Please check your data directory structure."
-    )
+    return spk2_dir
 
 
 def load_spike2_data(spk2_dir: Path, factor: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
