@@ -426,6 +426,7 @@ def export_fov_to_dict(fov: FOV) -> dict:
         'thresh': fov.thresh,
         'have_blank': fov.have_blank,
         'EPI_data': fov.EPI_data,
+        'stim_values': fov.stim_values if hasattr(fov, 'stim_values') else None,
     }
     return fov_dict
 

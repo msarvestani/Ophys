@@ -73,11 +73,52 @@ class FOV:
     stim_type: Optional[str] = None
     have_blank: Optional[int] = None
     recording_date: Optional[datetime] = None
+    stim_values: Optional[List[float]] = None  # Actual stimulus values (e.g., orientations)
 
     def __post_init__(self):
         """Calculate dependent fields after initialization"""
         # Calculate sampling rate from factor
         self.sampRate = 30 / self.factor
+
+
+def read_stim_orientations(directory: Path) -> Optional[List[float]]:
+    """
+    Read stimulus orientation values from stimorientations.txt file.
+
+    Args:
+        directory: Directory containing the stimorientations.txt file
+
+    Returns:
+        List of orientation values or None if file not found
+    """
+    stim_file = directory / 'stimorientations.txt'
+    if not stim_file.exists():
+        return None
+
+    try:
+        with open(stim_file, 'r') as f:
+            content = f.read().strip()
+
+        # Parse values - could be space, comma, or newline separated
+        # Handle formats like "0.  45.  90. 135." or "0, 45, 90, 135" or "0\n45\n90"
+        import re
+        # Split by any whitespace or comma
+        values_str = re.split(r'[,\s]+', content)
+        values = []
+        for v in values_str:
+            v = v.strip()
+            if v:
+                try:
+                    values.append(float(v))
+                except ValueError:
+                    pass
+
+        if values:
+            return values
+    except Exception as e:
+        print(f"  Warning: Error reading stimorientations.txt: {e}")
+
+    return None
 
 
 def extract_params_from_stimulus_file(stim_file_path: Path) -> dict:
@@ -225,6 +266,31 @@ def find_stimulus_file(directory: Path, stim_filename: Optional[str] = None) -> 
     return None
 
 
+def find_spk2_directory(base_path: Path, spk2_indices: List[int]) -> Optional[Path]:
+    """
+    Find the Spk2 subdirectory based on indices.
+
+    Args:
+        base_path: Base data directory
+        spk2_indices: List of Spk2 file indices
+
+    Returns:
+        Path to Spk2 directory or None
+    """
+    for spk2_idx in spk2_indices:
+        # Try common naming patterns
+        possible_dirs = [
+            base_path / f't{spk2_idx:05d}',  # t00016
+            base_path / f't{spk2_idx:04d}',  # t0016
+            base_path / f'spk2_{spk2_idx}',
+            base_path / str(spk2_idx),
+        ]
+        for spk2_dir in possible_dirs:
+            if spk2_dir.exists():
+                return spk2_dir
+    return None
+
+
 def populate_fov_from_stimulus(fov: FOV, stim_filename: Optional[str] = None) -> FOV:
     """
     Auto-populate FOV parameters from stimulus file and path.
@@ -257,8 +323,22 @@ def populate_fov_from_stimulus(fov: FOV, stim_filename: Optional[str] = None) ->
         print(f"  ⚠ Warning: Directory does not exist: {path}")
         return fov
 
-    # Find stimulus file
-    stim_file = find_stimulus_file(path, stim_filename)
+    # Find Spk2 directory for stimulus files
+    spk2_dir = find_spk2_directory(path, fov.Spk2File)
+
+    # Find stimulus file (check Spk2 dir first, then main path)
+    stim_file = None
+    search_dir = spk2_dir if spk2_dir else path
+
+    if stim_filename:
+        # If filename provided, search for it
+        stim_file = find_stimulus_file(search_dir, stim_filename)
+        if stim_file is None and spk2_dir:
+            stim_file = find_stimulus_file(path, stim_filename)
+    else:
+        stim_file = find_stimulus_file(search_dir)
+        if stim_file is None and spk2_dir:
+            stim_file = find_stimulus_file(path)
 
     if stim_file is None:
         print(f"  ⚠ Warning: No stimulus file found in {path}")
@@ -292,6 +372,18 @@ def populate_fov_from_stimulus(fov: FOV, stim_filename: Optional[str] = None) ->
 
     except Exception as e:
         print(f"  ✗ Error parsing stimulus file: {e}")
+
+    # Read stimulus orientation values from stimorientations.txt
+    # Check in same directory as stimulus file first, then Spk2 dir
+    stim_values = read_stim_orientations(stim_file.parent)
+    if stim_values is None and spk2_dir and stim_file.parent != spk2_dir:
+        stim_values = read_stim_orientations(spk2_dir)
+
+    if stim_values:
+        fov.stim_values = stim_values
+        print(f"  ✓ Loaded stim_values: {stim_values}")
+    else:
+        print(f"  ⚠ No stimorientations.txt found - stim_values not set")
 
     return fov
 
@@ -350,6 +442,10 @@ def print_fov_summary(fov: FOV, index: int):
     print(f"  Pre Period:       {fov.prePeriod}s")
     print(f"  Post Period:      {fov.postPeriod}s" if fov.postPeriod else "  Post Period:      N/A")
     print(f"  Have Blank:       {fov.have_blank if fov.have_blank is not None else 'N/A'}")
+    if fov.stim_values:
+        print(f"  Stim Values:      {fov.stim_values}")
+    else:
+        print(f"  Stim Values:      N/A")
     print(f"  Extraction:       {fov.extraction}")
     print(f"  Registration:     {fov.registration_type}")
 

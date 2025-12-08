@@ -20,6 +20,30 @@ from .cell_data import Cell, CellExtraction
 from .tuning_analysis import get_tuning_madineh, double_gauss
 
 
+def get_stim_info(ce: CellExtraction, n_dirs: int) -> np.ndarray:
+    """
+    Get stimulus info (orientations/directions) from FOV or generate default.
+
+    Args:
+        ce: CellExtraction object with optional fov reference
+        n_dirs: Number of directions (excluding blank)
+
+    Returns:
+        Array of stimulus values in degrees
+    """
+    # Try to get actual stim values from FOV
+    if ce.fov is not None and hasattr(ce.fov, 'stim_values') and ce.fov.stim_values is not None:
+        stim_values = np.array(ce.fov.stim_values)
+        # Return only the number of directions needed (in case blank is included)
+        if len(stim_values) >= n_dirs:
+            return stim_values[:n_dirs]
+        else:
+            return stim_values
+
+    # Fallback: generate evenly spaced values
+    return np.arange(0, 360, 360/n_dirs)
+
+
 def plot_cell_tuning_curve(cell: Cell,
                              stimInfo: np.ndarray,
                              tuning: dict,
@@ -174,7 +198,7 @@ def plot_orientation_map(ce: CellExtraction,
         cell = ce.cells[idx]
         n_dirs = len(cell.uniqStims) - 1
         if n_dirs > 0:
-            stimInfo = np.arange(0, 360, 360/n_dirs)
+            stimInfo = get_stim_info(ce, n_dirs)
             try:
                 tuning, _, _ = get_tuning_madineh(cell.condition_response[:n_dirs], stimInfo)
                 tuning_data.append((idx, tuning))
@@ -299,7 +323,7 @@ def plot_tuning_distributions(ce: CellExtraction,
         cell = ce.cells[idx]
         n_dirs = len(cell.uniqStims) - 1
         if n_dirs > 0:
-            stimInfo = np.arange(0, 360, 360/n_dirs)
+            stimInfo = get_stim_info(ce, n_dirs)
             try:
                 tuning, _, _ = get_tuning_madineh(cell.condition_response[:n_dirs], stimInfo)
                 oti_values.append(tuning['oti_fit'])
@@ -477,7 +501,7 @@ def create_full_analysis_report(ce: CellExtraction,
         cell = ce.cells[idx]
         n_dirs = len(cell.uniqStims) - 1
         if n_dirs > 0:
-            stimInfo = np.arange(0, 360, 360/n_dirs)
+            stimInfo = get_stim_info(ce, n_dirs)
             try:
                 tuning, _, fitdata = get_tuning_madineh(cell.condition_response[:n_dirs], stimInfo)
                 stim_dur = ce.fov.stim_dur if ce.fov else 4.0
