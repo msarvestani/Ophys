@@ -243,8 +243,9 @@ def organize_into_trials(cell: Cell,
     n_timepoints = stimDur2 + postPeriod2
 
     # Initialize arrays
+    # Note: prePeriod2 + 1 because arange includes endpoint (prestimTime goes to stimOn + 1)
     cell.cyc = np.zeros((n_stims, ntrials, n_timepoints))
-    cell.Fotrace = np.zeros((n_stims, ntrials, prePeriod2))
+    cell.Fotrace = np.zeros((n_stims, ntrials, prePeriod2 + 1))
     cell.regoffsets_trialx = np.zeros((n_stims, ntrials, n_timepoints))
     cell.regoffsets_trialy = np.zeros((n_stims, ntrials, n_timepoints))
 
