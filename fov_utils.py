@@ -109,7 +109,7 @@ def create_fov_from_stimfile(stimfile: Optional[str],
         TifStack_path: Path to imaging data directory
         ImagingFile: List of imaging file indices
         Spk2File: List of Spike2 file indices
-        **kwargs: Additional FOV parameters (factor, brain_region, layer, etc.)
+        **kwargs: Additional FOV parameters (factor, brain_region, etc.)
 
     Returns:
         FOV object with auto-populated fields
@@ -122,8 +122,7 @@ def create_fov_from_stimfile(stimfile: Optional[str],
         ...     ImagingFile=[0],
         ...     Spk2File=[0],
         ...     factor=1,
-        ...     brain_region='V1',
-        ...     layer='L2/3'
+        ...     brain_region='V1'
         ... )
 
         >>> # Or specify exact path

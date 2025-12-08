@@ -36,7 +36,6 @@ OUTPUT_DIR = r'X:/Experimental_Data/BrainImaging/20251113_Derrick/analysis_resul
 IMAGING_FILES = [0]       # Which imaging file(s) to use
 SPK2_FILES = [16]         # ACTUAL Spk2 directory number (for t00016/, use [16] not [0]!)
 BRAIN_REGION = 'V1'       # Brain region
-LAYER = 'L2/3'            # Cortical layer (or None)
 FACTOR = 1                # Downsampling factor
 
 # ============================================================================
@@ -67,7 +66,6 @@ def main():
         Spk2File=SPK2_FILES,
         factor=FACTOR,
         brain_region=BRAIN_REGION,
-        layer=LAYER,
     )
 
     print(f"  Animal: {fov.animal_name}")

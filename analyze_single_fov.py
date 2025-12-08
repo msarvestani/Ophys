@@ -12,7 +12,6 @@ Usage:
     python analyze_single_fov.py --data_dir X:/Madineh/Calcium_Imaging/20251113_Derrick \
                                   --output_dir analysis_results \
                                   --brain_region V1 \
-                                  --layer L2/3 \
                                   --factor 1
 """
 
@@ -34,7 +33,6 @@ def analyze_fov(data_dir: Path,
                 imaging_files: list = [0],
                 spk2_files: list = [0],
                 brain_region: str = 'V1',
-                layer: str = None,
                 factor: int = 1,
                 save_h5: bool = True):
     """
@@ -47,7 +45,6 @@ def analyze_fov(data_dir: Path,
         imaging_files: List of imaging file indices
         spk2_files: List of Spike2 file indices
         brain_region: Brain region
-        layer: Cortical layer
         factor: Downsampling factor
         save_h5: Whether to save HDF5 file
     """
@@ -79,13 +76,11 @@ def analyze_fov(data_dir: Path,
             Spk2File=spk2_files,
             factor=factor,
             brain_region=brain_region,
-            layer=layer,
         )
 
         print(f"  Animal: {fov.animal_name}")
         print(f"  Recording date: {fov.recording_date}")
         print(f"  Brain region: {fov.brain_region}")
-        print(f"  Layer: {fov.layer}")
         print(f"  Stim type: {fov.stim_type}")
         print(f"  Stim duration: {fov.stim_dur}s")
     except Exception as e:
@@ -162,8 +157,6 @@ Examples:
                         help='Spike2 file indices (default: [0])')
     parser.add_argument('--brain_region', type=str, default='V1',
                         help='Brain region (default: V1)')
-    parser.add_argument('--layer', type=str, default=None,
-                        help='Cortical layer (e.g., L2/3, L4)')
     parser.add_argument('--factor', type=int, default=1,
                         help='Downsampling factor (default: 1)')
     parser.add_argument('--no_save_h5', action='store_true',
@@ -183,7 +176,6 @@ Examples:
         imaging_files=args.imaging_files,
         spk2_files=args.spk2_files,
         brain_region=args.brain_region,
-        layer=args.layer,
         factor=args.factor,
         save_h5=not args.no_save_h5,
     )

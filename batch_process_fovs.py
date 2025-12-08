@@ -55,8 +55,7 @@ def create_fov_config(data_dir: Path,
                        imaging_indices: List[int] = [0],
                        spk2_indices: List[int] = [0],
                        factor: int = 1,
-                       brain_region: str = 'V1',
-                       layer: Optional[str] = None) -> FOV:
+                       brain_region: str = 'V1') -> FOV:
     """
     Create FOV configuration with auto-detected stimulus file.
 
@@ -66,7 +65,6 @@ def create_fov_config(data_dir: Path,
         spk2_indices: Spike2 file indices
         factor: Downsampling factor
         brain_region: Brain region
-        layer: Cortical layer
 
     Returns:
         FOV object
@@ -78,7 +76,6 @@ def create_fov_config(data_dir: Path,
         Spk2File=spk2_indices,
         factor=factor,
         brain_region=brain_region,
-        layer=layer,
     )
 
     return fov
@@ -173,7 +170,6 @@ def process_single_fov(data_dir: Path,
             'animal_name': fov.animal_name,
             'recording_date': fov.recording_date,
             'brain_region': fov.brain_region,
-            'layer': fov.layer,
             'n_cells': n_cells,
             'n_responsive': n_responsive,
             'pct_responsive': 100 * n_responsive / n_cells if n_cells > 0 else 0,
@@ -276,8 +272,6 @@ def main():
                         help='Glob pattern for data directories (default: 202*)')
     parser.add_argument('--brain_region', type=str, default='V1',
                         help='Brain region')
-    parser.add_argument('--layer', type=str, default=None,
-                        help='Cortical layer')
     parser.add_argument('--factor', type=int, default=1,
                         help='Downsampling factor')
     parser.add_argument('--no_plots', action='store_true',
@@ -298,7 +292,6 @@ def main():
     # FOV parameters
     fov_params = {
         'brain_region': args.brain_region,
-        'layer': args.layer,
         'factor': args.factor,
     }
 
