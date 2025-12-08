@@ -61,6 +61,9 @@ def find_spike2_dir(base_path: Path, file_num: int) -> Path:
     This handles cases where Spk2File is a list index (e.g., [0])
     rather than the actual file number (e.g., [16]).
 
+    Prioritizes directories that contain .py stimulus files, as the
+    stimulus file and Spike2 data are typically in the same directory.
+
     Args:
         base_path: Base directory to search in
         file_num: File number from Spk2File parameter
@@ -77,13 +80,25 @@ def find_spike2_dir(base_path: Path, file_num: int) -> Path:
         return exact_dir
 
     # If file_num is small (< 100), it's likely a list index, not file number
-    # Search for any directory matching t[0-9]{5} pattern
+    # Search for directory that contains BOTH a .py file AND Spike2 data
     if file_num < 100:
-        for item in base_path.iterdir():
+        # First pass: look for directory with .py file (stimulus file)
+        for item in sorted(base_path.iterdir(), reverse=True):  # Sort descending to prefer higher numbers
             if item.is_dir() and item.name.startswith('t') and len(item.name) == 6:
                 # Check if it looks like t00016 pattern
                 if item.name[1:].isdigit():
-                    # Verify it has the expected Spike2 files
+                    # Check if it has BOTH stimulus file (.py) AND Spike2 data
+                    has_py_file = len(list(item.glob('*.py'))) > 0
+                    has_spike2_data = (item / 'twophotontimes.txt').exists() or (item / 'stimontimes.txt').exists()
+
+                    if has_py_file and has_spike2_data:
+                        print(f"  Found Spike2 directory: {item.name} (has stimulus file)")
+                        return item
+
+        # Second pass: if no directory has both, just find one with Spike2 data (prefer higher numbers)
+        for item in sorted(base_path.iterdir(), reverse=True):
+            if item.is_dir() and item.name.startswith('t') and len(item.name) == 6:
+                if item.name[1:].isdigit():
                     if (item / 'twophotontimes.txt').exists() or (item / 'stimontimes.txt').exists():
                         print(f"  Found Spike2 directory: {item.name} (Spk2File=[{file_num}])")
                         return item
