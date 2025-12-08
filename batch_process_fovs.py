@@ -30,32 +30,38 @@ from ophys_analysis import (
 )
 
 
-def find_stimulus_files(base_dir: Path, pattern: str = "*/visual_stim.py") -> List[Path]:
+def find_data_directories(base_dir: Path, pattern: str = "202*") -> List[Path]:
     """
-    Find all stimulus files matching pattern.
+    Find all data directories (typically named with date pattern).
 
     Args:
         base_dir: Base directory to search
-        pattern: Glob pattern for stimulus files
+        pattern: Glob pattern for data directories (default: 202*)
 
     Returns:
-        List of stimulus file paths
+        List of data directory paths
     """
-    stim_files = list(base_dir.glob(pattern))
-    return sorted(stim_files)
+    # Find directories that match the pattern and contain suite2p/
+    data_dirs = []
+    for dir_path in base_dir.glob(pattern):
+        if dir_path.is_dir():
+            # Check if it has suite2p directory
+            if (dir_path / 'suite2p').exists():
+                data_dirs.append(dir_path)
+    return sorted(data_dirs)
 
 
-def create_fov_config(stim_file: Path,
+def create_fov_config(data_dir: Path,
                        imaging_indices: List[int] = [0],
                        spk2_indices: List[int] = [0],
                        factor: int = 1,
                        brain_region: str = 'V1',
                        layer: Optional[str] = None) -> FOV:
     """
-    Create FOV configuration from stimulus file.
+    Create FOV configuration with auto-detected stimulus file.
 
     Args:
-        stim_file: Path to stimulus file
+        data_dir: Path to data directory
         imaging_indices: Imaging file indices
         spk2_indices: Spike2 file indices
         factor: Downsampling factor
@@ -65,24 +71,20 @@ def create_fov_config(stim_file: Path,
     Returns:
         FOV object
     """
-    data_dir = stim_file.parent
-
     fov = create_fov_from_stimfile(
-        stimfile=str(stim_file),
+        stimfile=None,  # Auto-detect in Spk2 subdirectories
         TifStack_path=str(data_dir),
         ImagingFile=imaging_indices,
         Spk2File=spk2_indices,
+        factor=factor,
+        brain_region=brain_region,
+        layer=layer,
     )
-
-    fov.factor = factor
-    fov.brain_region = brain_region
-    if layer:
-        fov.layer = layer
 
     return fov
 
 
-def process_single_fov(stim_file: Path,
+def process_single_fov(data_dir: Path,
                         output_dir: Path,
                         fov_params: Optional[Dict] = None,
                         save_plots: bool = True) -> Dict:
@@ -90,7 +92,7 @@ def process_single_fov(stim_file: Path,
     Process a single FOV.
 
     Args:
-        stim_file: Path to stimulus file
+        data_dir: Path to data directory
         output_dir: Output directory for results
         fov_params: Optional FOV parameters
         save_plots: Whether to save analysis plots
@@ -101,10 +103,10 @@ def process_single_fov(stim_file: Path,
     start_time = time.time()
 
     # Create output directory
-    fov_output_dir = output_dir / stim_file.parent.name
+    fov_output_dir = output_dir / data_dir.name
     fov_output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\nProcessing: {stim_file.parent.name}")
+    print(f"\nProcessing: {data_dir.name}")
     print("=" * 60)
 
     try:
@@ -112,7 +114,7 @@ def process_single_fov(stim_file: Path,
         if fov_params is None:
             fov_params = {}
 
-        fov = create_fov_config(stim_file, **fov_params)
+        fov = create_fov_config(data_dir, **fov_params)
 
         # Save FOV configuration
         fov_dict = export_fov_to_dict(fov)
@@ -167,7 +169,7 @@ def process_single_fov(stim_file: Path,
 
         # Calculate summary statistics
         stats = {
-            'fov_name': stim_file.parent.name,
+            'fov_name': data_dir.name,
             'animal_name': fov.animal_name,
             'recording_date': fov.recording_date,
             'brain_region': fov.brain_region,
@@ -190,7 +192,7 @@ def process_single_fov(stim_file: Path,
     except Exception as e:
         print(f"  ✗ Error: {str(e)}")
         return {
-            'fov_name': stim_file.parent.name,
+            'fov_name': data_dir.name,
             'status': 'failed',
             'error': str(e),
             'processing_time': time.time() - start_time,
@@ -199,7 +201,7 @@ def process_single_fov(stim_file: Path,
 
 def batch_process(input_dir: Path,
                    output_dir: Path,
-                   pattern: str = "*/visual_stim.py",
+                   pattern: str = "202*",
                    fov_params: Optional[Dict] = None,
                    save_plots: bool = True) -> List[Dict]:
     """
@@ -208,29 +210,30 @@ def batch_process(input_dir: Path,
     Args:
         input_dir: Input directory containing FOVs
         output_dir: Output directory for results
-        pattern: Glob pattern for stimulus files
+        pattern: Glob pattern for data directories (default: 202*)
         fov_params: Optional FOV parameters
         save_plots: Whether to save analysis plots
 
     Returns:
         List of processing statistics for each FOV
     """
-    # Find all stimulus files
-    stim_files = find_stimulus_files(input_dir, pattern)
+    # Find all data directories
+    data_dirs = find_data_directories(input_dir, pattern)
 
-    if not stim_files:
-        print(f"No stimulus files found matching pattern: {pattern}")
+    if not data_dirs:
+        print(f"No data directories found matching pattern: {pattern}")
+        print(f"Looked for directories with suite2p/ subdirectory in: {input_dir}")
         return []
 
-    print(f"Found {len(stim_files)} FOVs to process")
+    print(f"Found {len(data_dirs)} FOVs to process")
     print(f"Output directory: {output_dir}")
     print("=" * 60)
 
     # Process each FOV
     all_stats = []
-    for i, stim_file in enumerate(stim_files, 1):
-        print(f"\nFOV {i}/{len(stim_files)}")
-        stats = process_single_fov(stim_file, output_dir, fov_params, save_plots)
+    for i, data_dir in enumerate(data_dirs, 1):
+        print(f"\nFOV {i}/{len(data_dirs)}")
+        stats = process_single_fov(data_dir, output_dir, fov_params, save_plots)
         all_stats.append(stats)
 
     # Save summary
@@ -269,8 +272,8 @@ def main():
                         help='Input directory containing FOVs')
     parser.add_argument('--output_dir', type=str, default='batch_results',
                         help='Output directory for results')
-    parser.add_argument('--pattern', type=str, default='*/visual_stim.py',
-                        help='Glob pattern for stimulus files')
+    parser.add_argument('--pattern', type=str, default='202*',
+                        help='Glob pattern for data directories (default: 202*)')
     parser.add_argument('--brain_region', type=str, default='V1',
                         help='Brain region')
     parser.add_argument('--layer', type=str, default=None,

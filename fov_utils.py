@@ -17,7 +17,63 @@ except ImportError:
     print("Warning: Could not import FOV class. Make sure fov_config_suite2p.py is in the same directory.")
 
 
-def create_fov_from_stimfile(stimfile: str,
+def find_stim_file_in_spk2_dirs(data_dir: Path, spk2_indices: List[int]) -> Optional[Path]:
+    """
+    Find stimulus file in Spk2 subdirectories.
+
+    The typical structure is:
+    data_dir/
+        t00016/  (Spk2File[0])
+            driftinggrating_orientation.py
+            spike2data files...
+        t00017/  (Spk2File[1])
+            ...
+
+    Args:
+        data_dir: Path to main data directory
+        spk2_indices: List of Spk2 file indices to search
+
+    Returns:
+        Path to stimulus file or None if not found
+    """
+    data_path = Path(data_dir)
+
+    # Search in each Spk2 directory
+    for spk2_idx in spk2_indices:
+        # Try common naming patterns for Spk2 directories
+        possible_dirs = [
+            data_path / f't{spk2_idx:05d}',  # t00016
+            data_path / f't{spk2_idx:04d}',  # t0016
+            data_path / f'spk2_{spk2_idx}',
+            data_path / str(spk2_idx),
+        ]
+
+        for spk2_dir in possible_dirs:
+            if spk2_dir.exists():
+                # Search for .py files in this directory
+                py_files = list(spk2_dir.glob('*.py'))
+                if py_files:
+                    # Prefer files with common stimulus keywords
+                    for pattern in ['*grating*.py', '*orientation*.py', '*stim*.py', '*visual*.py']:
+                        matches = list(spk2_dir.glob(pattern))
+                        if matches:
+                            return matches[0]
+                    # Otherwise return first .py file
+                    return py_files[0]
+
+    # If not found in Spk2 dirs, try main directory
+    py_files = list(data_path.glob('*.py'))
+    if py_files:
+        for pattern in ['*grating*.py', '*orientation*.py', '*stim*.py', '*visual*.py']:
+            matches = list(data_path.glob(pattern))
+            if matches:
+                return matches[0]
+        return py_files[0]
+
+    return None
+
+
+def create_fov_from_stimfile(stimfile: Optional[str],
                               TifStack_path: str,
                               ImagingFile: List[int],
                               Spk2File: List[int],
@@ -28,8 +84,12 @@ def create_fov_from_stimfile(stimfile: str,
     This is a convenience function that creates a FOV object and
     automatically populates it from the stimulus file and path.
 
+    If stimfile is None, it will automatically search for the stimulus file
+    in the Spk2File subdirectories (e.g., t00016/) and then the main directory.
+
     Args:
-        stimfile: Path to stimulus file (can be relative to TifStack_path)
+        stimfile: Path to stimulus file (or None to auto-detect)
+                 Can be absolute, relative to TifStack_path, or just filename
         TifStack_path: Path to imaging data directory
         ImagingFile: List of imaging file indices
         Spk2File: List of Spike2 file indices
@@ -39,14 +99,23 @@ def create_fov_from_stimfile(stimfile: str,
         FOV object with auto-populated fields
 
     Example:
+        >>> # Auto-detect stimulus file
         >>> fov = create_fov_from_stimfile(
-        ...     stimfile='visual_stim.py',
+        ...     stimfile=None,  # Will search in t00016/ etc.
         ...     TifStack_path='X:/Data/20251113_Derrick',
         ...     ImagingFile=[0],
         ...     Spk2File=[0],
         ...     factor=1,
         ...     brain_region='V1',
         ...     layer='L2/3'
+        ... )
+
+        >>> # Or specify exact path
+        >>> fov = create_fov_from_stimfile(
+        ...     stimfile='X:/Data/20251113_Derrick/t00016/driftinggrating_orientation.py',
+        ...     TifStack_path='X:/Data/20251113_Derrick',
+        ...     ImagingFile=[0],
+        ...     Spk2File=[0]
         ... )
     """
     # Create FOV with required and optional parameters
@@ -58,13 +127,30 @@ def create_fov_from_stimfile(stimfile: str,
     )
 
     # Determine stimulus filename
-    stim_path = Path(stimfile)
-    if stim_path.is_absolute():
-        # Use just the filename if absolute path provided
-        stim_filename = stim_path.name
+    stim_filename = None
+
+    if stimfile is None:
+        # Auto-detect in Spk2 subdirectories
+        stim_path = find_stim_file_in_spk2_dirs(Path(TifStack_path), Spk2File)
+        if stim_path:
+            # Get relative path from TifStack_path
+            try:
+                stim_filename = str(stim_path.relative_to(Path(TifStack_path)))
+            except ValueError:
+                # If not relative, use absolute path
+                stim_filename = str(stim_path)
+            print(f"  Auto-detected stimulus file: {stim_filename}")
     else:
-        # Use as-is if relative or just filename
-        stim_filename = str(stim_path)
+        stim_path = Path(stimfile)
+        if stim_path.is_absolute():
+            # Get relative path from TifStack_path or use filename
+            try:
+                stim_filename = str(stim_path.relative_to(Path(TifStack_path)))
+            except ValueError:
+                stim_filename = stim_path.name
+        else:
+            # Use as-is if relative or just filename
+            stim_filename = str(stim_path)
 
     # Populate from stimulus file
     fov = populate_fov_from_stimulus(fov, stim_filename=stim_filename)
