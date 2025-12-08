@@ -14,6 +14,7 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from typing import Optional, Tuple, List
 import warnings
+from scipy.spatial import ConvexHull
 
 from .cell_data import Cell, CellExtraction
 from .tuning_analysis import get_tuning_madineh, double_gauss
@@ -202,7 +203,7 @@ def plot_orientation_map(ce: CellExtraction,
         # Color by direction (0-360)
         dir_color = plt.cm.hsv(pref_dir / 360.0)
 
-        if cell.mask is not None and len(cell.mask) > 2:
+        if cell.mask is not None and len(cell.mask) > 3:
             # mask from np.argwhere is [row, col] = [y, x], need to swap for Polygon [x, y]
             mask_xy = cell.mask[:, ::-1] if cell.mask.shape[1] == 2 else cell.mask
 
@@ -210,13 +211,22 @@ def plot_orientation_map(ce: CellExtraction,
             all_x.extend(mask_xy[:, 0])
             all_y.extend(mask_xy[:, 1])
 
-            # Plot orientation map
-            poly = Polygon(mask_xy, facecolor=ort_color, edgecolor='none', alpha=0.6)
-            ax1.add_patch(poly)
+            # Get convex hull for clean ROI boundary (like actual neuron shape)
+            try:
+                hull = ConvexHull(mask_xy)
+                hull_points = mask_xy[hull.vertices]
 
-            # Plot direction map
-            poly = Polygon(mask_xy, facecolor=dir_color, edgecolor='none', alpha=0.6)
-            ax2.add_patch(poly)
+                # Plot orientation map
+                poly = Polygon(hull_points, facecolor=ort_color, edgecolor='none', alpha=0.6)
+                ax1.add_patch(poly)
+
+                # Plot direction map
+                poly = Polygon(hull_points, facecolor=dir_color, edgecolor='none', alpha=0.6)
+                ax2.add_patch(poly)
+            except Exception:
+                # Fallback: plot as scatter if convex hull fails
+                ax1.scatter(mask_xy[:, 0], mask_xy[:, 1], c=[ort_color], s=1, alpha=0.6)
+                ax2.scatter(mask_xy[:, 0], mask_xy[:, 1], c=[dir_color], s=1, alpha=0.6)
 
     # Set axis limits based on data if no fov_image provided
     if fov_image is None and len(all_x) > 0:
