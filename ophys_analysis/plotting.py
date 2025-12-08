@@ -158,14 +158,45 @@ def plot_cell_tuning_curve(cell: Cell,
                    verticalalignment='top', fontsize=9,
                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
-    # Plot ROI mask (if available and if you have the FOV image)
-    # ax_mask = plt.subplot(3, 3, 9)
-    # # This would show the ROI overlay on the FOV image
-    # # For now, just show the mask coordinates
-    # if cell.mask is not None:
-    #     ax_mask.scatter(cell.mask[:, 0], cell.mask[:, 1], s=1)
-    #     ax_mask.set_aspect('equal')
-    #     ax_mask.set_title('ROI Mask')
+    # Plot ROI mask in bottom right
+    ax_mask = plt.subplot(3, 3, 9)
+    if cell.mask is not None and len(cell.mask) > 3:
+        # mask from np.argwhere is [row, col] = [y, x], swap for plotting
+        mask_xy = cell.mask[:, ::-1] if cell.mask.shape[1] == 2 else cell.mask
+
+        # Get convex hull for clean shape
+        try:
+            hull = ConvexHull(mask_xy)
+            hull_points = mask_xy[hull.vertices]
+            # Close the polygon
+            hull_closed = np.vstack([hull_points, hull_points[0]])
+
+            # Fill the ROI shape
+            ax_mask.fill(hull_closed[:, 0], hull_closed[:, 1],
+                        color='green', alpha=0.6, edgecolor='darkgreen', linewidth=2)
+
+            # Set axis limits with margin
+            margin = 5
+            x_min, x_max = mask_xy[:, 0].min() - margin, mask_xy[:, 0].max() + margin
+            y_min, y_max = mask_xy[:, 1].min() - margin, mask_xy[:, 1].max() + margin
+            ax_mask.set_xlim(x_min, x_max)
+            ax_mask.set_ylim(y_max, y_min)  # Invert y for image coords
+        except Exception:
+            # Fallback: scatter plot of mask pixels
+            ax_mask.scatter(mask_xy[:, 0], mask_xy[:, 1], c='green', s=2, alpha=0.6)
+            margin = 5
+            x_min, x_max = mask_xy[:, 0].min() - margin, mask_xy[:, 0].max() + margin
+            y_min, y_max = mask_xy[:, 1].min() - margin, mask_xy[:, 1].max() + margin
+            ax_mask.set_xlim(x_min, x_max)
+            ax_mask.set_ylim(y_max, y_min)
+
+        # Mark centroid
+        ax_mask.plot(cell.xPos, cell.yPos, 'r+', markersize=10, markeredgewidth=2)
+
+    ax_mask.set_aspect('equal')
+    ax_mask.set_title('ROI Mask')
+    ax_mask.set_xlabel('X (px)')
+    ax_mask.set_ylabel('Y (px)')
 
     plt.tight_layout()
 
