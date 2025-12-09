@@ -150,7 +150,8 @@ def plot_cell_tuning_curve(cell: Cell,
     ax_tuning = plt.subplot(3, 3, 8)
     ax_tuning.errorbar(stimInfo_sorted, response_sorted, yerr=response_sem_sorted,
                        fmt='o', capsize=3, label='Data')
-    fit_x = np.arange(1, 361, 5)
+    # fitdata has 360 points (1-degree resolution, 0-359°)
+    fit_x = np.arange(0, 360, 1)
     ax_tuning.plot(fit_x, fitdata, 'r--', linewidth=2, label='Fit')
     ax_tuning.set_xlabel('Direction (°)')
     ax_tuning.set_ylabel('ΔF/F')

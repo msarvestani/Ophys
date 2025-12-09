@@ -267,23 +267,16 @@ def get_tuning_madineh(meanResponse: np.ndarray,
     # Fit double Gaussian to get fit-based metrics
     # ========================================================================
 
-    # Check if we need to circularly shift to avoid wrap-around issues
-    # (when preferred orientation is near 0 or 180)
-    if (200 > DIR2['pref_ort_vec'] > 160) or (20 > DIR2['pref_ort_vec'] > 0):
-        # Shift by 2 positions to avoid fitting issues
-        meanResponse_fit = np.roll(meanResponse, 2)
-        G, r, p = fit_tuning_direction(meanResponse_fit, stimInfo)
-        FITDATA = double_gauss(G, np.arange(1, 361, 5))
-        DIR2['fit_r'] = r[0, 1]
-        # Correct for the shift
-        G[2] = wrapTo360(G[2] - div * 2)
-        DIR2['xlabel_vals'] = wrapTo360(np.round(np.arange(0, 361, div) + div * 0))
-    else:
-        meanResponse_fit = meanResponse
-        G, r, p = fit_tuning_direction(meanResponse_fit, stimInfo)
-        FITDATA = double_gauss(G, np.arange(1, 361, 5))
-        DIR2['fit_r'] = r[0, 1]
-        DIR2['xlabel_vals'] = np.arange(0, 361, div)
+    # Fit directly without rolling - the double Gaussian handles circularity
+    # via its angular difference calculation
+    meanResponse_fit = meanResponse
+    G, r, p = fit_tuning_direction(meanResponse_fit, stimInfo)
+    DIR2['fit_r'] = r[0, 1]
+    DIR2['xlabel_vals'] = np.arange(0, 361, div)
+
+    # Generate smooth fit curve for plotting
+    fit_x_smooth = np.arange(0, 360, 1)  # 1-degree resolution
+    FITDATA = double_gauss(G, fit_x_smooth)
 
     DIR2['fit_bandwidth'] = G[3]  # sigma
 
@@ -296,14 +289,15 @@ def get_tuning_madineh(meanResponse: np.ndarray,
 
     # Find orthogonal direction
     theta_ortho = theta_pref + 90
-    if theta_ortho > 180:
-        theta_ortho = min(abs(theta_ortho + 180), abs(theta_ortho))
+    if theta_ortho >= 360:
+        theta_ortho = theta_ortho - 360
 
-    # Get responses at preferred and orthogonal
-    ind_ortho = np.argmin(np.abs(theta_ortho - np.arange(1, 361, 5)))
-    ind_pref = np.argmin(np.abs(theta_pref - np.arange(1, 361, 5)))
-    R_ortho = FITDATA[ind_ortho]
+    # Get responses at preferred and orthogonal from the fit curve
+    # fit_x_smooth is 0, 1, 2, ..., 359 so index = angle
+    ind_pref = int(round(theta_pref)) % 360
+    ind_ortho = int(round(theta_ortho)) % 360
     R_pref_fit = FITDATA[ind_pref]
+    R_ortho = FITDATA[ind_ortho]
 
     # Orientation tuning index (fit-based)
     DIR2['oti_fit'] = (R_pref - R_ortho) / R_pref if R_pref != 0 else 0
