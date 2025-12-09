@@ -170,11 +170,15 @@ def plot_cell_tuning_curve(cell: Cell,
                    verticalalignment='top', fontsize=9,
                    bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
-    # Plot ROI mask in bottom right
+    # Plot ROI mask in bottom right, colored by preferred orientation
     ax_mask = plt.subplot(3, 3, 9)
     if cell.mask is not None and len(cell.mask) > 3:
         # mask from np.argwhere is [row, col] = [y, x], swap for plotting
         mask_xy = cell.mask[:, ::-1] if cell.mask.shape[1] == 2 else cell.mask
+
+        # Color by preferred orientation (same colormap as FOV orientation map)
+        pref_ort = tuning.get('pref_ort_fit', 0)
+        ort_color = plt.cm.hsv(pref_ort / 180.0)
 
         # Get convex hull for clean shape
         try:
@@ -183,9 +187,9 @@ def plot_cell_tuning_curve(cell: Cell,
             # Close the polygon
             hull_closed = np.vstack([hull_points, hull_points[0]])
 
-            # Fill the ROI shape
+            # Fill the ROI shape with orientation-based color
             ax_mask.fill(hull_closed[:, 0], hull_closed[:, 1],
-                        color='green', alpha=0.6, edgecolor='darkgreen', linewidth=2)
+                        color=ort_color, alpha=0.7, edgecolor='black', linewidth=2)
 
             # Set axis limits with margin
             margin = 5
@@ -195,20 +199,20 @@ def plot_cell_tuning_curve(cell: Cell,
             ax_mask.set_ylim(y_max, y_min)  # Invert y for image coords
         except Exception:
             # Fallback: scatter plot of mask pixels
-            ax_mask.scatter(mask_xy[:, 0], mask_xy[:, 1], c='green', s=2, alpha=0.6)
+            ax_mask.scatter(mask_xy[:, 0], mask_xy[:, 1], c=[ort_color], s=2, alpha=0.7)
             margin = 5
             x_min, x_max = mask_xy[:, 0].min() - margin, mask_xy[:, 0].max() + margin
             y_min, y_max = mask_xy[:, 1].min() - margin, mask_xy[:, 1].max() + margin
             ax_mask.set_xlim(x_min, x_max)
             ax_mask.set_ylim(y_max, y_min)
 
-        # Mark centroid - calculate from mask_xy for consistency with displayed coordinates
+        # Mark centroid
         centroid_x = np.mean(mask_xy[:, 0])
         centroid_y = np.mean(mask_xy[:, 1])
-        ax_mask.plot(centroid_x, centroid_y, 'r+', markersize=10, markeredgewidth=2)
+        ax_mask.plot(centroid_x, centroid_y, 'k+', markersize=10, markeredgewidth=2)
 
     ax_mask.set_aspect('equal')
-    ax_mask.set_title('ROI Mask')
+    ax_mask.set_title(f'ROI (Pref: {tuning.get("pref_ort_fit", 0):.0f}°)')
     ax_mask.set_xlabel('X (px)')
     ax_mask.set_ylabel('Y (px)')
 

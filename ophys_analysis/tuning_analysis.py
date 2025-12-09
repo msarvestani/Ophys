@@ -296,14 +296,21 @@ def get_tuning_madineh(meanResponse: np.ndarray,
     # fit_x_smooth is 0, 1, 2, ..., 359 so index = angle
     ind_pref = int(round(theta_pref)) % 360
     ind_ortho = int(round(theta_ortho)) % 360
+    ind_null = int(round(theta_pref + 180)) % 360  # Opposite direction
+
     R_pref_fit = FITDATA[ind_pref]
-    R_ortho = FITDATA[ind_ortho]
+    R_ortho_fit = FITDATA[ind_ortho]
+    R_null_fit = FITDATA[ind_null]
 
-    # Orientation tuning index (fit-based)
-    DIR2['oti_fit'] = (R_pref - R_ortho) / R_pref if R_pref != 0 else 0
+    # Orientation selectivity index (fit-based) - standard formula
+    # OSI = (R_pref - R_ortho) / (R_pref + R_ortho)
+    osi_denom = R_pref_fit + R_ortho_fit
+    DIR2['oti_fit'] = (R_pref_fit - R_ortho_fit) / osi_denom if osi_denom != 0 else 0
 
-    # Direction tuning index (fit-based)
-    DIR2['dti_fit'] = min((R_pref - R_opp) / R_pref if R_pref != 0 else 0, 1)
+    # Direction selectivity index (fit-based) - standard formula
+    # DSI = (R_pref - R_null) / (R_pref + R_null)
+    dsi_denom = R_pref_fit + R_null_fit
+    DIR2['dti_fit'] = (R_pref_fit - R_null_fit) / dsi_denom if dsi_denom != 0 else 0
 
     # Preferred direction and orientation
     DIR2['pref_dir_fit'] = theta_pref
@@ -311,14 +318,8 @@ def get_tuning_madineh(meanResponse: np.ndarray,
     if DIR2['pref_ort_fit'] > 180:
         DIR2['pref_ort_fit'] = min(abs(theta_pref + 180), abs(theta_pref - 180))
 
-    # Bound checking
+    # Bound checking (standard formula gives -1 to 1, but we expect 0 to 1 for positive responses)
     DIR2['dti_fit'] = max(0, min(1, DIR2['dti_fit']))
     DIR2['oti_fit'] = max(0, min(1, DIR2['oti_fit']))
-
-    # If negative, use vector-based values
-    if DIR2['dti_fit'] < 0:
-        DIR2['dti_fit'] = DIR2['dti_vec']
-    if DIR2['oti_fit'] < 0:
-        DIR2['oti_fit'] = DIR2['oti_vec']
 
     return DIR2, meanResponse_fit, FITDATA
