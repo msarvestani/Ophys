@@ -201,8 +201,10 @@ def plot_cell_tuning_curve(cell: Cell,
             ax_mask.set_xlim(x_min, x_max)
             ax_mask.set_ylim(y_max, y_min)
 
-        # Mark centroid
-        ax_mask.plot(cell.xPos, cell.yPos, 'r+', markersize=10, markeredgewidth=2)
+        # Mark centroid - calculate from mask_xy for consistency with displayed coordinates
+        centroid_x = np.mean(mask_xy[:, 0])
+        centroid_y = np.mean(mask_xy[:, 1])
+        ax_mask.plot(centroid_x, centroid_y, 'r+', markersize=10, markeredgewidth=2)
 
     ax_mask.set_aspect('equal')
     ax_mask.set_title('ROI Mask')
