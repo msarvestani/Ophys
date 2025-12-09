@@ -92,13 +92,22 @@ def plot_cell_tuning_curve(cell: Cell,
     # Use arange for correct time spacing (linspace would give n_points/(n_points-1) * scanPeriod spacing)
     time_trace = np.arange(n_points) * cell.scanPeriod
 
+    # Calculate global y-limits across ALL orientations for consistent axis
+    global_ymax = -np.inf
+    global_ymin = np.inf
+    for si in range(len(stimInfo)):
+        data = cell.cyc[si, :, :]
+        if np.any(~np.isnan(data)):
+            global_ymax = max(global_ymax, np.nanmax(data))
+            global_ymin = min(global_ymin, np.nanmin(data))
+    global_ymax = max(global_ymax * 1.2, 0.5)
+    global_ymin = min(global_ymin * 1.2, -0.2)
+
     # Plot time series for each orientation
     for i, sort_i in enumerate(sort_idx):
         ax = plt.subplot(3, row_width, i + 1)
 
         # Highlight stimulus period
-        ymax = max(np.nanmax(cell.cyc[sort_i, :, :]) * 1.2, 0.5)
-        ymin = min(np.nanmin(cell.cyc[sort_i, :, :]) * 1.2, -0.2)
         ax.axvspan(0, stim_dur, alpha=0.3, color='yellow')
 
         # Plot individual trials
@@ -110,7 +119,8 @@ def plot_cell_tuning_curve(cell: Cell,
         mean_trace = np.nanmean(cell.cyc[sort_i, :, :], axis=0)
         ax.plot(time_trace, mean_trace, 'k', linewidth=2)
 
-        ax.set_ylim([ymin, ymax])
+        # Use consistent y-limits across all orientations
+        ax.set_ylim([global_ymin, global_ymax])
         ax.set_xlim([0, np.max(time_trace)])
 
         if i == 0:

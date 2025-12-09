@@ -180,14 +180,14 @@ def fit_tuning_direction(meanResponse: np.ndarray,
     # Ensure G0 is within bounds
     G0 = np.clip(G0, LB, UB)
 
-    # Fit using least squares
+    # Fit using least squares - use Resp (truncated to match X), not full meanResponse
     def residuals(params):
-        return meanResponse - double_gauss(params, X)
+        return Resp - double_gauss(params, X)
 
     result = least_squares(residuals, G0, bounds=(LB, UB))
     G = result.x
 
-    # Generate fit data
+    # Generate fit data at the stimulus positions
     FITDATA = double_gauss(G, X)
 
     # Calculate correlation
