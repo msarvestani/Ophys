@@ -193,8 +193,8 @@ def plot_cell_tuning_curve(cell: Cell,
 
             # Set axis limits with margin
             margin = 5
-            x_min, x_max = mask_xy[:, 0].min() - margin, mask_xy[:, 0].max() + margin
-            y_min, y_max = mask_xy[:, 1].min() - margin, mask_xy[:, 1].max() + margin
+            x_min, x_max = 0, 512
+            y_min, y_max = 0,512
             ax_mask.set_xlim(x_min, x_max)
             ax_mask.set_ylim(y_max, y_min)  # Invert y for image coords
         except Exception:
