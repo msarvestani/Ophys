@@ -160,10 +160,10 @@ def plot_cell_tuning_curve(cell: Cell,
     ax_tuning.legend()
     ax_tuning.set_title(f"Visual Resp: {cell.ROI_responsiveness}")
 
-    # Add statistics text
+    # Add statistics text (using fit-based OTI/DTI with standard formula)
     stats_text = (
-        f"Pref Ort: {tuning['pref_ort_fit']:.0f}°, OTI: {tuning['oti_vec']:.2f}\n"
-        f"Pref Dir: {tuning['pref_dir_fit']:.0f}°, DTI: {tuning['dti_vec']:.2f}\n"
+        f"Pref Ort: {tuning['pref_ort_fit']:.0f}°, OTI: {tuning['oti_fit']:.2f}\n"
+        f"Pref Dir: {tuning['pref_dir_fit']:.0f}°, DTI: {tuning['dti_fit']:.2f}\n"
         f"Fit r: {tuning['fit_r']:.2f}, BW: {tuning['fit_bandwidth']:.0f}°"
     )
     ax_tuning.text(0.02, 0.98, stats_text, transform=ax_tuning.transAxes,
