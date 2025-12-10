@@ -161,7 +161,9 @@ def process_single_fov(data_dir: Path,
         # Generate plots
         if save_plots:
             print("  Generating analysis plots...")
-            plots_dir = fov_output_dir / 'plots'
+            # Save in subfolder named after ImagingFile (e.g., t0, t1, etc.)
+            imaging_file_num = fov.ImagingFile[0] if isinstance(fov.ImagingFile, list) else fov.ImagingFile
+            plots_dir = fov_output_dir / 'plots' / f"t{imaging_file_num}"
             create_full_analysis_report(ce, output_dir=str(plots_dir))
 
         # Calculate summary statistics

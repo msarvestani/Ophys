@@ -106,12 +106,17 @@ def analyze_fov(data_dir: Path,
     # Step 5: Generate full analysis report
     print("\nStep 5: Generating analysis report...")
     try:
-        create_full_analysis_report(ce, output_dir=str(output_dir))
+        # Save in subfolder named after ImagingFile (e.g., t0, t1, etc.)
+        imaging_file_num = fov.ImagingFile[0] if isinstance(fov.ImagingFile, list) else fov.ImagingFile
+        report_dir = output_dir / f"t{imaging_file_num}"
+        report_dir.mkdir(parents=True, exist_ok=True)
+        create_full_analysis_report(ce, output_dir=str(report_dir))
         print(f"\n{'='*70}")
         print("ANALYSIS COMPLETE!")
         print(f"{'='*70}")
-        print(f"Results saved to: {output_dir}")
+        print(f"Extraction saved to: {output_dir}")
         print(f"  - extraction_results.h5")
+        print(f"Analysis report saved to: {report_dir}")
         print(f"  - population_summary.png")
         print(f"  - orientation_maps.png")
         print(f"  - tuning_distributions.png")
