@@ -84,7 +84,8 @@ def create_fov_config(data_dir: Path,
 def process_single_fov(data_dir: Path,
                         output_dir: Path,
                         fov_params: Optional[Dict] = None,
-                        save_plots: bool = True) -> Dict:
+                        save_plots: bool = True,
+                        fit_r_threshold: Optional[float] = None) -> Dict:
     """
     Process a single FOV.
 
@@ -93,6 +94,7 @@ def process_single_fov(data_dir: Path,
         output_dir: Output directory for results
         fov_params: Optional FOV parameters
         save_plots: Whether to save analysis plots
+        fit_r_threshold: If specified, only include cells with Gaussian fit r >= this value
 
     Returns:
         Dictionary with processing results and statistics
@@ -164,7 +166,7 @@ def process_single_fov(data_dir: Path,
             # Save in subfolder named after ImagingFile (e.g., t0, t1, etc.)
             imaging_file_num = fov.ImagingFile[0] if isinstance(fov.ImagingFile, list) else fov.ImagingFile
             plots_dir = fov_output_dir / 'plots' / f"t{imaging_file_num}"
-            create_full_analysis_report(ce, output_dir=str(plots_dir))
+            create_full_analysis_report(ce, output_dir=str(plots_dir), fit_r_threshold=fit_r_threshold)
 
         # Calculate summary statistics
         stats = {
@@ -201,7 +203,8 @@ def batch_process(input_dir: Path,
                    output_dir: Path,
                    pattern: str = "202*",
                    fov_params: Optional[Dict] = None,
-                   save_plots: bool = True) -> List[Dict]:
+                   save_plots: bool = True,
+                   fit_r_threshold: Optional[float] = None) -> List[Dict]:
     """
     Batch process multiple FOVs.
 
@@ -211,6 +214,7 @@ def batch_process(input_dir: Path,
         pattern: Glob pattern for data directories (default: 202*)
         fov_params: Optional FOV parameters
         save_plots: Whether to save analysis plots
+        fit_r_threshold: If specified, only include cells with Gaussian fit r >= this value
 
     Returns:
         List of processing statistics for each FOV
@@ -231,7 +235,7 @@ def batch_process(input_dir: Path,
     all_stats = []
     for i, data_dir in enumerate(data_dirs, 1):
         print(f"\nFOV {i}/{len(data_dirs)}")
-        stats = process_single_fov(data_dir, output_dir, fov_params, save_plots)
+        stats = process_single_fov(data_dir, output_dir, fov_params, save_plots, fit_r_threshold)
         all_stats.append(stats)
 
     # Save summary
@@ -278,6 +282,8 @@ def main():
                         help='Downsampling factor')
     parser.add_argument('--no_plots', action='store_true',
                         help='Skip plot generation')
+    parser.add_argument('--fit_r_threshold', type=float, default=None,
+                        help='Only include cells with Gaussian fit r >= this value (e.g., 0.9)')
 
     args = parser.parse_args()
 
@@ -304,6 +310,7 @@ def main():
         pattern=args.pattern,
         fov_params=fov_params,
         save_plots=not args.no_plots,
+        fit_r_threshold=args.fit_r_threshold,
     )
 
 

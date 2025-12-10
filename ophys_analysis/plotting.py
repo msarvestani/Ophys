@@ -510,10 +510,44 @@ def plot_population_summary(ce: CellExtraction, save_path: Optional[str] = None)
         plt.show()
 
 
+def get_well_fit_cells(ce: CellExtraction,
+                        fit_r_threshold: float = 0.9,
+                        responsive_only: bool = True) -> List[int]:
+    """
+    Get indices of cells with good Gaussian fit quality.
+
+    Args:
+        ce: CellExtraction object
+        fit_r_threshold: Minimum fit correlation (default: 0.9)
+        responsive_only: Only consider responsive cells (default: True)
+
+    Returns:
+        List of cell indices with fit_r >= fit_r_threshold
+    """
+    well_fit_indices = []
+
+    for i, cell in enumerate(ce.cells):
+        if responsive_only and not cell.ROI_responsiveness:
+            continue
+
+        n_dirs = len(cell.uniqStims) - 1
+        if n_dirs > 0:
+            stimInfo = get_stim_info(ce, n_dirs)
+            try:
+                tuning, _, _ = get_tuning_madineh(cell.condition_response[:n_dirs], stimInfo)
+                if tuning['fit_r'] >= fit_r_threshold:
+                    well_fit_indices.append(i)
+            except:
+                pass
+
+    return well_fit_indices
+
+
 def create_full_analysis_report(ce: CellExtraction,
                                   fov_image: Optional[np.ndarray] = None,
                                   output_dir: Optional[str] = None,
                                   cell_indices: Optional[List[int]] = None,
+                                  fit_r_threshold: Optional[float] = None,
                                   max_individual_plots: int = 10):
     """
     Create a complete analysis report with all plots.
@@ -523,6 +557,8 @@ def create_full_analysis_report(ce: CellExtraction,
         fov_image: Optional FOV image
         output_dir: Directory to save plots (if None, displays instead)
         cell_indices: Specific cell indices to include (default: all responsive cells)
+        fit_r_threshold: If specified, only include cells with Gaussian fit r >= this value
+                         (e.g., 0.9 for well-fit cells). Applied after cell_indices filtering.
         max_individual_plots: Maximum number of individual cell tuning curves to generate
                               (default: 10, set to None or -1 for all cells)
     """
@@ -535,6 +571,23 @@ def create_full_analysis_report(ce: CellExtraction,
     # Determine which cells to include
     if cell_indices is None:
         cell_indices = [i for i, c in enumerate(ce.cells) if c.ROI_responsiveness]
+
+    # Filter by fit quality if threshold specified
+    if fit_r_threshold is not None:
+        filtered_indices = []
+        for idx in cell_indices:
+            cell = ce.cells[idx]
+            n_dirs = len(cell.uniqStims) - 1
+            if n_dirs > 0:
+                stimInfo = get_stim_info(ce, n_dirs)
+                try:
+                    tuning, _, _ = get_tuning_madineh(cell.condition_response[:n_dirs], stimInfo)
+                    if tuning['fit_r'] >= fit_r_threshold:
+                        filtered_indices.append(idx)
+                except:
+                    pass
+        print(f"Filtered to {len(filtered_indices)}/{len(cell_indices)} cells with fit_r >= {fit_r_threshold}")
+        cell_indices = filtered_indices
 
     # 1. Population summary (always shows all cells)
     print("Creating population summary...")

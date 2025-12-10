@@ -38,6 +38,9 @@ SPK2_FILES = [16]         # ACTUAL Spk2 directory number (for t00016/, use [16] 
 BRAIN_REGION = 'V1'       # Brain region
 FACTOR = 1                # Downsampling factor
 
+# Analysis filtering (optional)
+FIT_R_THRESHOLD = None    # Set to e.g. 0.9 to only include cells with good Gaussian fit
+
 # ============================================================================
 # ANALYSIS CODE (no need to edit below)
 # ============================================================================
@@ -89,7 +92,7 @@ def main():
     imaging_file_num = fov.ImagingFile[0] if isinstance(fov.ImagingFile, list) else fov.ImagingFile
     report_path = output_path / f"t{imaging_file_num}"
     report_path.mkdir(parents=True, exist_ok=True)
-    create_full_analysis_report(ce, output_dir=str(report_path))
+    create_full_analysis_report(ce, output_dir=str(report_path), fit_r_threshold=FIT_R_THRESHOLD)
 
     print(f"\n{'='*70}")
     print("ANALYSIS COMPLETE!")

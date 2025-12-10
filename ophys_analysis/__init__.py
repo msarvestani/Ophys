@@ -15,6 +15,7 @@ from .plotting import (
     plot_tuning_distributions,
     plot_population_summary,
     create_full_analysis_report,
+    get_well_fit_cells,
 )
 
 __version__ = '0.1.0'
@@ -32,4 +33,5 @@ __all__ = [
     'plot_tuning_distributions',
     'plot_population_summary',
     'create_full_analysis_report',
+    'get_well_fit_cells',
 ]

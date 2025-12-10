@@ -34,7 +34,8 @@ def analyze_fov(data_dir: Path,
                 spk2_files: list = [0],
                 brain_region: str = 'V1',
                 factor: int = 1,
-                save_h5: bool = True):
+                save_h5: bool = True,
+                fit_r_threshold: float = None):
     """
     Analyze a single FOV from start to finish.
 
@@ -47,6 +48,7 @@ def analyze_fov(data_dir: Path,
         brain_region: Brain region
         factor: Downsampling factor
         save_h5: Whether to save HDF5 file
+        fit_r_threshold: If specified, only include cells with Gaussian fit r >= this value
     """
     data_dir = Path(data_dir)
     output_dir = Path(output_dir)
@@ -110,7 +112,7 @@ def analyze_fov(data_dir: Path,
         imaging_file_num = fov.ImagingFile[0] if isinstance(fov.ImagingFile, list) else fov.ImagingFile
         report_dir = output_dir / f"t{imaging_file_num}"
         report_dir.mkdir(parents=True, exist_ok=True)
-        create_full_analysis_report(ce, output_dir=str(report_dir))
+        create_full_analysis_report(ce, output_dir=str(report_dir), fit_r_threshold=fit_r_threshold)
         print(f"\n{'='*70}")
         print("ANALYSIS COMPLETE!")
         print(f"{'='*70}")
@@ -166,6 +168,8 @@ Examples:
                         help='Downsampling factor (default: 1)')
     parser.add_argument('--no_save_h5', action='store_true',
                         help='Skip saving HDF5 file')
+    parser.add_argument('--fit_r_threshold', type=float, default=None,
+                        help='Only include cells with Gaussian fit r >= this value (e.g., 0.9)')
 
     args = parser.parse_args()
 
@@ -183,6 +187,7 @@ Examples:
         brain_region=args.brain_region,
         factor=args.factor,
         save_h5=not args.no_save_h5,
+        fit_r_threshold=args.fit_r_threshold,
     )
 
 
