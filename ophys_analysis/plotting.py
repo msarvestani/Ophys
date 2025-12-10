@@ -512,7 +512,9 @@ def plot_population_summary(ce: CellExtraction, save_path: Optional[str] = None)
 
 def create_full_analysis_report(ce: CellExtraction,
                                   fov_image: Optional[np.ndarray] = None,
-                                  output_dir: Optional[str] = None):
+                                  output_dir: Optional[str] = None,
+                                  cell_indices: Optional[List[int]] = None,
+                                  max_individual_plots: int = 10):
     """
     Create a complete analysis report with all plots.
 
@@ -520,6 +522,9 @@ def create_full_analysis_report(ce: CellExtraction,
         ce: CellExtraction object
         fov_image: Optional FOV image
         output_dir: Directory to save plots (if None, displays instead)
+        cell_indices: Specific cell indices to include (default: all responsive cells)
+        max_individual_plots: Maximum number of individual cell tuning curves to generate
+                              (default: 10, set to None or -1 for all cells)
     """
     from pathlib import Path
 
@@ -527,26 +532,35 @@ def create_full_analysis_report(ce: CellExtraction,
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True, parents=True)
 
-    # 1. Population summary
+    # Determine which cells to include
+    if cell_indices is None:
+        cell_indices = [i for i, c in enumerate(ce.cells) if c.ROI_responsiveness]
+
+    # 1. Population summary (always shows all cells)
     print("Creating population summary...")
     plot_population_summary(ce,
                              save_path=str(output_path / 'population_summary.png') if output_dir else None)
 
-    # 2. Orientation maps
+    # 2. Orientation maps (use specified cell indices)
     print("Creating orientation/direction maps...")
-    plot_orientation_map(ce, fov_image=fov_image,
+    plot_orientation_map(ce, cell_indices=cell_indices, fov_image=fov_image,
                           save_path=str(output_path / 'orientation_maps.png') if output_dir else None)
 
-    # 3. Tuning distributions
+    # 3. Tuning distributions (use specified cell indices)
     print("Creating tuning distributions...")
-    plot_tuning_distributions(ce,
+    plot_tuning_distributions(ce, cell_indices=cell_indices,
                                save_path=str(output_path / 'tuning_distributions.png') if output_dir else None)
 
-    # 4. Individual cell tuning curves (for responsive cells)
-    responsive_indices = [i for i, c in enumerate(ce.cells) if c.ROI_responsiveness]
-    print(f"Creating tuning curves for {len(responsive_indices)} responsive cells...")
+    # 4. Individual cell tuning curves
+    # Determine how many individual plots to create
+    if max_individual_plots is None or max_individual_plots < 0:
+        plot_indices = cell_indices
+    else:
+        plot_indices = cell_indices[:max_individual_plots]
 
-    for idx in responsive_indices[:10]:  # Limit to first 10 for now
+    print(f"Creating tuning curves for {len(plot_indices)} cells...")
+
+    for idx in plot_indices:
         cell = ce.cells[idx]
         n_dirs = len(cell.uniqStims) - 1
         if n_dirs > 0:
