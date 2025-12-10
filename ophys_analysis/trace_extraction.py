@@ -474,13 +474,14 @@ def extract_suite2p_traces(fov, fnum: int = 0, save_dir: Optional[Path] = None) 
             cell.yPos = float(np.median(ypix))
             cell.xPos = float(np.median(xpix))
 
-            # Create mask
+            # Create mask - note: numpy indexing is [row, col] = [y, x]
             mask = np.zeros((512, 512))
             valid_idx = (xpix < 512) & (ypix < 512) & (xpix >= 0) & (ypix >= 0)
             mask[ypix[valid_idx], xpix[valid_idx]] = lam[valid_idx]
 
             mask_coords = np.argwhere(mask > 0)
             cell.mask = mask_coords
+            cell.mask_2d = mask  # Store full 2D weighted mask
         except Exception as e:
             print(f"    Warning: Could not extract mask for ROI {i}: {e}")
             # Fallback: set default position and mask

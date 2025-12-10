@@ -10,11 +10,8 @@ This module provides plotting functions for:
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon
-from matplotlib.collections import PatchCollection
 from typing import Optional, Tuple, List
 import warnings
-from scipy.spatial import ConvexHull
 
 from .cell_data import Cell, CellExtraction
 from .tuning_analysis import get_tuning_madineh, double_gauss
@@ -172,41 +169,56 @@ def plot_cell_tuning_curve(cell: Cell,
 
     # Plot ROI mask in bottom right, colored by preferred orientation
     ax_mask = plt.subplot(3, 3, 9)
-    if cell.mask is not None and len(cell.mask) > 3:
-        # mask from np.argwhere is [row, col] = [y, x], swap for plotting
+    pref_ort = tuning.get('pref_ort_fit', 0)
+    ort_color = plt.cm.hsv(pref_ort / 180.0)
+
+    # Use 2D mask if available for detailed Suite2P-like display
+    if hasattr(cell, 'mask_2d') and cell.mask_2d is not None:
+        mask_2d = cell.mask_2d
+
+        # Find bounding box of the mask
+        nonzero = np.argwhere(mask_2d > 0)
+        if len(nonzero) > 0:
+            y_min_mask, x_min_mask = nonzero.min(axis=0)
+            y_max_mask, x_max_mask = nonzero.max(axis=0)
+
+            # Add margin around the ROI
+            margin = 10
+            y_min_crop = max(0, y_min_mask - margin)
+            y_max_crop = min(mask_2d.shape[0], y_max_mask + margin)
+            x_min_crop = max(0, x_min_mask - margin)
+            x_max_crop = min(mask_2d.shape[1], x_max_mask + margin)
+
+            # Crop the mask
+            mask_crop = mask_2d[y_min_crop:y_max_crop, x_min_crop:x_max_crop]
+
+            # Create RGBA image colored by orientation
+            rgba = np.zeros((*mask_crop.shape, 4))
+            mask_norm = mask_crop / mask_crop.max() if mask_crop.max() > 0 else mask_crop
+            rgba[..., 0] = ort_color[0] * (mask_norm > 0)
+            rgba[..., 1] = ort_color[1] * (mask_norm > 0)
+            rgba[..., 2] = ort_color[2] * (mask_norm > 0)
+            rgba[..., 3] = mask_norm  # Alpha = weight
+
+            ax_mask.imshow(rgba, origin='upper',
+                          extent=[x_min_crop, x_max_crop, y_max_crop, y_min_crop])
+
+            # Mark centroid
+            centroid_x = cell.xPos if cell.xPos else (x_min_mask + x_max_mask) / 2
+            centroid_y = cell.yPos if cell.yPos else (y_min_mask + y_max_mask) / 2
+            ax_mask.plot(centroid_x, centroid_y, 'k+', markersize=10, markeredgewidth=2)
+
+    elif cell.mask is not None and len(cell.mask) > 3:
+        # Fallback to coordinate-based plotting
         mask_xy = cell.mask[:, ::-1] if cell.mask.shape[1] == 2 else cell.mask
+        ax_mask.scatter(mask_xy[:, 0], mask_xy[:, 1], c=[ort_color], s=4, marker='s', alpha=0.8)
 
-        # Color by preferred orientation (same colormap as FOV orientation map)
-        pref_ort = tuning.get('pref_ort_fit', 0)
-        ort_color = plt.cm.hsv(pref_ort / 180.0)
+        margin = 10
+        x_min, x_max = mask_xy[:, 0].min() - margin, mask_xy[:, 0].max() + margin
+        y_min, y_max = mask_xy[:, 1].min() - margin, mask_xy[:, 1].max() + margin
+        ax_mask.set_xlim(x_min, x_max)
+        ax_mask.set_ylim(y_max, y_min)
 
-        # Get convex hull for clean shape
-        try:
-            hull = ConvexHull(mask_xy)
-            hull_points = mask_xy[hull.vertices]
-            # Close the polygon
-            hull_closed = np.vstack([hull_points, hull_points[0]])
-
-            # Fill the ROI shape with orientation-based color
-            ax_mask.fill(hull_closed[:, 0], hull_closed[:, 1],
-                        color=ort_color, alpha=0.7, edgecolor='black', linewidth=2)
-
-            # Set axis limits with margin
-            margin = 5
-            x_min, x_max = 0, 512
-            y_min, y_max = 0,512
-            ax_mask.set_xlim(x_min, x_max)
-            ax_mask.set_ylim(y_max, y_min)  # Invert y for image coords
-        except Exception:
-            # Fallback: scatter plot of mask pixels
-            ax_mask.scatter(mask_xy[:, 0], mask_xy[:, 1], c=[ort_color], s=2, alpha=0.7)
-            margin = 5
-            x_min, x_max = mask_xy[:, 0].min() - margin, mask_xy[:, 0].max() + margin
-            y_min, y_max = mask_xy[:, 1].min() - margin, mask_xy[:, 1].max() + margin
-            ax_mask.set_xlim(x_min, x_max)
-            ax_mask.set_ylim(y_max, y_min)
-
-        # Mark centroid
         centroid_x = np.mean(mask_xy[:, 0])
         centroid_y = np.mean(mask_xy[:, 1])
         ax_mask.plot(centroid_x, centroid_y, 'k+', markersize=10, markeredgewidth=2)
@@ -276,30 +288,44 @@ def plot_orientation_map(ce: CellExtraction,
         # Color by direction (0-360)
         dir_color = plt.cm.hsv(pref_dir / 360.0)
 
-        if cell.mask is not None and len(cell.mask) > 3:
-            # mask from np.argwhere is [row, col] = [y, x], need to swap for Polygon [x, y]
+        # Use 2D mask if available for detailed Suite2P-like display
+        if hasattr(cell, 'mask_2d') and cell.mask_2d is not None:
+            mask_2d = cell.mask_2d
+            nonzero = np.argwhere(mask_2d > 0)
+            if len(nonzero) > 0:
+                # Track bounds
+                all_y.extend(nonzero[:, 0])
+                all_x.extend(nonzero[:, 1])
+
+                # Create colored overlay for this cell's mask
+                # For orientation map
+                ort_rgba = np.zeros((*mask_2d.shape, 4))
+                mask_binary = mask_2d > 0
+                ort_rgba[mask_binary, 0] = ort_color[0]
+                ort_rgba[mask_binary, 1] = ort_color[1]
+                ort_rgba[mask_binary, 2] = ort_color[2]
+                ort_rgba[mask_binary, 3] = 0.6
+                ax1.imshow(ort_rgba, origin='upper', extent=[0, mask_2d.shape[1], mask_2d.shape[0], 0])
+
+                # For direction map
+                dir_rgba = np.zeros((*mask_2d.shape, 4))
+                dir_rgba[mask_binary, 0] = dir_color[0]
+                dir_rgba[mask_binary, 1] = dir_color[1]
+                dir_rgba[mask_binary, 2] = dir_color[2]
+                dir_rgba[mask_binary, 3] = 0.6
+                ax2.imshow(dir_rgba, origin='upper', extent=[0, mask_2d.shape[1], mask_2d.shape[0], 0])
+
+        elif cell.mask is not None and len(cell.mask) > 3:
+            # Fallback to coordinate-based plotting
             mask_xy = cell.mask[:, ::-1] if cell.mask.shape[1] == 2 else cell.mask
 
             # Track bounds
             all_x.extend(mask_xy[:, 0])
             all_y.extend(mask_xy[:, 1])
 
-            # Get convex hull for clean ROI boundary (like actual neuron shape)
-            try:
-                hull = ConvexHull(mask_xy)
-                hull_points = mask_xy[hull.vertices]
-
-                # Plot orientation map
-                poly = Polygon(hull_points, facecolor=ort_color, edgecolor='none', alpha=0.6)
-                ax1.add_patch(poly)
-
-                # Plot direction map
-                poly = Polygon(hull_points, facecolor=dir_color, edgecolor='none', alpha=0.6)
-                ax2.add_patch(poly)
-            except Exception:
-                # Fallback: plot as scatter if convex hull fails
-                ax1.scatter(mask_xy[:, 0], mask_xy[:, 1], c=[ort_color], s=1, alpha=0.6)
-                ax2.scatter(mask_xy[:, 0], mask_xy[:, 1], c=[dir_color], s=1, alpha=0.6)
+            # Plot as scatter (more detailed than convex hull)
+            ax1.scatter(mask_xy[:, 0], mask_xy[:, 1], c=[ort_color], s=2, marker='s', alpha=0.6)
+            ax2.scatter(mask_xy[:, 0], mask_xy[:, 1], c=[dir_color], s=2, marker='s', alpha=0.6)
 
     # Set axis limits based on data if no fov_image provided
     if fov_image is None and len(all_x) > 0:

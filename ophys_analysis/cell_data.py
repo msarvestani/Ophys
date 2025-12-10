@@ -71,7 +71,8 @@ class Cell:
         # Spatial
         self.xPos: Optional[float] = None
         self.yPos: Optional[float] = None
-        self.mask: Optional[np.ndarray] = None
+        self.mask: Optional[np.ndarray] = None  # ROI mask coordinates [[y, x], ...]
+        self.mask_2d: Optional[np.ndarray] = None  # Full 2D weighted mask array
 
         # Timing
         self.scanPeriod: Optional[float] = None
