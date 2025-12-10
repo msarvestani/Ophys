@@ -85,13 +85,18 @@ def main():
 
     # Step 4: Generate full analysis report
     print("\n[4/4] Generating analysis report...")
-    create_full_analysis_report(ce, output_dir=str(output_path))
+    # Save in subfolder named after ImagingFile (e.g., t0, t1, etc.)
+    imaging_file_num = fov.ImagingFile[0] if isinstance(fov.ImagingFile, list) else fov.ImagingFile
+    report_path = output_path / f"t{imaging_file_num}"
+    report_path.mkdir(parents=True, exist_ok=True)
+    create_full_analysis_report(ce, output_dir=str(report_path))
 
     print(f"\n{'='*70}")
     print("ANALYSIS COMPLETE!")
     print(f"{'='*70}")
-    print(f"Results saved to: {output_path}")
+    print(f"Extraction saved to: {output_path}")
     print(f"  - extraction_results.h5")
+    print(f"Analysis report saved to: {report_path}")
     print(f"  - population_summary.png")
     print(f"  - orientation_maps.png")
     print(f"  - tuning_distributions.png")
