@@ -52,7 +52,7 @@ pip install jupyter ipykernel
 ### Setup
 
 ```bash
-git clone https://github.com/msarvestani/Ophys.git
+git clone https://github.com/sarvestanilab/Ophys.git
 cd Ophys
 ```
 
@@ -195,7 +195,7 @@ This will:
 - `Spk2File`: List of Spike2 file indices (e.g., `[0]`)
 
 **Optional (with defaults):**
-- `factor`: Frame averaging factor (default: 1)
+- `factor`: Frame averaging factor (default: 1, auto-detected from data)
 - `brain_region`: Brain region (default: 'v1')
 - `layer`: Cortical layer (default: None)
 - `zoom`: Microscope zoom (default: 3)
@@ -226,7 +226,8 @@ cell.raw              # Raw fluorescence trace
 cell.dff              # ΔF/F trace
 cell.cyc              # Trial-structured data [n_stim, n_trials, n_timepoints]
 cell.xPos, cell.yPos  # Spatial position
-cell.mask             # ROI mask coordinates
+cell.mask             # ROI mask coordinates [[y, x], ...]
+cell.mask_2d          # Full 2D weighted mask array (512x512)
 cell.ROI_responsiveness  # Boolean: visually responsive?
 cell.condition_response  # Mean response per stimulus
 ```
@@ -259,6 +260,8 @@ extract_suite2p_traces(fov, fnum=0)
 ```
 - Loads Suite2P F.npy, Fneu.npy, iscell.npy, stat.npy
 - Loads Spike2 timing data
+- **Auto-detects frame averaging factor** from Suite2P frame count vs Spike2 timestamps
+- Extracts full 2D weighted ROI masks for Suite2P-like visualization
 - Organizes traces into trial structure
 - Calculates ΔF/F with baseline correction
 - Detects visually responsive cells (2σ above baseline)
@@ -286,11 +289,13 @@ Comprehensive single-cell analysis:
 - Time series traces for each orientation
 - Polar tuning plot
 - Fitted tuning curve with statistics
+- Detailed ROI mask display (Suite2P-like weighted pixels)
 
 #### plot_orientation_map()
 Spatial maps of tuning preferences:
 - HSV-colored orientation map (0-180°)
 - Direction map (0-360°)
+- Pixel-accurate ROI masks (not simplified polygons)
 - Overlaid on FOV image (optional)
 
 #### plot_tuning_distributions()
